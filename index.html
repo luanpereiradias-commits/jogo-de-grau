@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🏍️ Moto Runner</title>
+  <title>🏍️ Moto Runner - Gráficos Premium</title>
   <style>
     body {
       margin: 0;
@@ -16,21 +16,22 @@
       font-family: 'Arial', sans-serif;
     }
     canvas {
-      border: 5px solid #222;
-      border-radius: 12px;
-      box-shadow: 0 0 30px rgba(0, 255, 100, 0.4);
+      border: 6px solid #1a1a1a;
+      border-radius: 15px;
+      box-shadow: 0 0 40px rgba(0, 255, 120, 0.5);
     }
     #hud {
       position: absolute;
-      top: 20px;
+      top: 25px;
       left: 50%;
       transform: translateX(-50%);
       color: white;
       text-align: center;
-      text-shadow: 0 2px 10px black;
+      text-shadow: 0 3px 12px black;
+      z-index: 10;
     }
-    #score { font-size: 28px; font-weight: bold; }
-    #level { font-size: 18px; color: #ffd700; }
+    #score { font-size: 32px; font-weight: bold; }
+    #level { font-size: 20px; color: #ffd700; margin-top: 5px; }
   </style>
 </head>
 <body>
@@ -38,7 +39,7 @@
     <div>Distância: <span id="score">0</span>m</div>
     <div id="level">Nível 1</div>
   </div>
-  <canvas id="gameCanvas" width="900" height="500"></canvas>
+  <canvas id="gameCanvas" width="950" height="520"></canvas>
 
   <script>
     const canvas = document.getElementById("gameCanvas");
@@ -46,17 +47,18 @@
     const scoreEl = document.getElementById("score");
     const levelEl = document.getElementById("level");
 
-    let bikeX = 120;
-    let bikeY = 340;
+    let bikeX = 130;
+    let bikeY = 355;
     let bikeSpeed = 7;
     let velocityY = 0;
-    let gravity = 0.85;
+    let gravity = 0.82;
     let isJumping = false;
     let score = 0;
     let gameTime = 0;
     let level = 1;
     let gameOver = false;
     let wheelAngle = 0;
+    let cloudOffset = 0;
 
     let obstacles = [];
     let particles = [];
@@ -68,159 +70,185 @@
     window.addEventListener("keyup", e => keys[e.key] = false);
 
     function createParticles(x, y) {
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 8; i++) {
         particles.push({
-          x: x + 15,
-          y: y + 40,
-          vx: -bikeSpeed * 0.4 - Math.random() * 3,
-          vy: -1.5 - Math.random() * 2,
-          life: 28
+          x: x + 20,
+          y: y + 42,
+          vx: -bikeSpeed * 0.5 - Math.random() * 4,
+          vy: -Math.random() * 3 - 1,
+          life: 30,
+          size: Math.random() * 7 + 4
         });
       }
     }
 
     function drawBackground() {
-      const grad = ctx.createLinearGradient(0, 0, 0, 300);
-      grad.addColorStop(0, "#1e90ff");
-      grad.addColorStop(1, "#87ceeb");
-      ctx.fillStyle = grad;
+      // Céu
+      const sky = ctx.createLinearGradient(0, 0, 0, 300);
+      sky.addColorStop(0, "#0a4d8c");
+      sky.addColorStop(1, "#7cc7ff");
+      ctx.fillStyle = sky;
       ctx.fillRect(0, 0, canvas.width, 380);
 
-      ctx.fillStyle = "#ffeb3b";
+      // Sol com brilho
+      ctx.fillStyle = "rgba(255, 230, 80, 0.9)";
       ctx.beginPath();
-      ctx.arc(720, 110, 48, 0, Math.PI * 2);
+      ctx.arc(750, 130, 55, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = "#2e8b57";
+      // Nuvens
+      cloudOffset = (cloudOffset + 0.3) % (canvas.width + 200);
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      for (let i = 0; i < 4; i++) {
+        let x = (i * 280 + cloudOffset) % (canvas.width + 300) - 100;
+        ctx.beginPath();
+        ctx.ellipse(x + 60, 80 + i * 25, 55, 25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(x + 90, 75 + i * 25, 45, 28, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Montanhas (camadas)
+      ctx.fillStyle = "#1e5f3a";
       ctx.beginPath();
       ctx.moveTo(0, 380);
-      ctx.lineTo(180, 190);
-      ctx.lineTo(420, 380);
-      ctx.lineTo(620, 230);
-      ctx.lineTo(900, 380);
+      ctx.lineTo(220, 180);
+      ctx.lineTo(480, 380);
       ctx.fill();
 
-      ctx.fillStyle = "#333";
-      ctx.fillRect(0, 380, canvas.width, 120);
+      ctx.fillStyle = "#245c38";
+      ctx.beginPath();
+      ctx.moveTo(150, 380);
+      ctx.lineTo(520, 140);
+      ctx.lineTo(780, 380);
+      ctx.fill();
 
-      ctx.fillStyle = "#1e5c1e";
-      ctx.fillRect(0, 370, canvas.width, 15);
+      // Vegetação distante
+      ctx.fillStyle = "#1e4d2a";
+      ctx.fillRect(0, 340, canvas.width, 45);
 
+      // Estrada com gradiente
+      const road = ctx.createLinearGradient(0, 380, 0, 520);
+      road.addColorStop(0, "#2a2a2a");
+      road.addColorStop(1, "#1a1a1a");
+      ctx.fillStyle = road;
+      ctx.fillRect(0, 380, canvas.width, 140);
+
+      // Linhas da estrada
       ctx.strokeStyle = "#ffeb3b";
-      ctx.lineWidth = 8;
-      for (let i = -50; i < canvas.width + 50; i += 80) {
-        let pos = (i - (score * 2 % 80));
+      ctx.lineWidth = 9;
+      for (let i = -60; i < canvas.width + 100; i += 85) {
+        let pos = (i - (score * 2.8 % 85));
         ctx.beginPath();
-        ctx.moveTo(pos, 415);
-        ctx.lineTo(pos + 45, 415);
+        ctx.moveTo(pos, 425);
+        ctx.lineTo(pos + 48, 425);
         ctx.stroke();
       }
     }
 
     function drawBike() {
-      wheelAngle += bikeSpeed * 0.13;
+      wheelAngle += bikeSpeed * 0.14;
 
-      ctx.fillStyle = "rgba(0,0,0,0.3)";
-      ctx.fillRect(bikeX + 15, bikeY + 48, 70, 14);
+      // Sombra forte
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.fillRect(bikeX + 12, bikeY + 48, 78, 18);
 
+      // Corpo da moto
       ctx.fillStyle = "#e63939";
-      ctx.fillRect(bikeX + 10, bikeY + 12, 78, 30);
+      ctx.fillRect(bikeX + 12, bikeY + 15, 82, 32);
 
-      ctx.fillStyle = "#ddd";
-      ctx.fillRect(bikeX + 18, bikeY + 20, 60, 9);
+      // Detalhes metálicos
+      ctx.fillStyle = "#eeeeee";
+      ctx.fillRect(bikeX + 22, bikeY + 22, 65, 10);
 
       // Rodas
       ctx.strokeStyle = "#111";
-      ctx.lineWidth = 19;
-      ctx.beginPath(); ctx.arc(bikeX + 22, bikeY + 47, 18, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(bikeX + 78, bikeY + 47, 18, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 21;
+      ctx.beginPath(); ctx.arc(bikeX + 25, bikeY + 48, 19, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(bikeX + 82, bikeY + 48, 19, 0, Math.PI * 2); ctx.stroke();
 
+      // Aros com rotação
       ctx.strokeStyle = "#ddd";
-      ctx.lineWidth = 7;
+      ctx.lineWidth = 8;
       ctx.save();
-      ctx.translate(bikeX + 22, bikeY + 47);
+      ctx.translate(bikeX + 25, bikeY + 48);
       ctx.rotate(wheelAngle);
       ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
 
       ctx.save();
-      ctx.translate(bikeX + 78, bikeY + 47);
+      ctx.translate(bikeX + 82, bikeY + 48);
       ctx.rotate(wheelAngle);
       ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
 
-      ctx.strokeStyle = "#222";
-      ctx.lineWidth = 9;
+      // Guidão
+      ctx.strokeStyle = "#1a1a1a";
+      ctx.lineWidth = 10;
       ctx.beginPath();
-      ctx.moveTo(bikeX + 70, bikeY + 20);
-      ctx.quadraticCurveTo(bikeX + 88, bikeY + 8, bikeX + 98, bikeY - 10);
+      ctx.moveTo(bikeX + 72, bikeY + 22);
+      ctx.quadraticCurveTo(bikeX + 95, bikeY + 8, bikeX + 105, bikeY - 12);
       ctx.stroke();
 
-      ctx.fillStyle = "#222";
-      ctx.fillRect(bikeX + 38, bikeY - 15, 30, 27);
+      // Piloto
+      ctx.fillStyle = "#1f1f1f";
+      ctx.fillRect(bikeX + 42, bikeY - 12, 32, 28);
       ctx.fillStyle = "#ffdbac";
-      ctx.fillRect(bikeX + 44, bikeY - 28, 20, 20);
+      ctx.fillRect(bikeX + 48, bikeY - 25, 22, 20);
       ctx.fillStyle = "#111";
-      ctx.fillRect(bikeX + 43, bikeY - 33, 23, 13);
+      ctx.fillRect(bikeX + 47, bikeY - 30, 24, 14);
     }
 
-    // ==================== NOVOS OBSTÁCULOS ====================
     function drawObstacle(obs) {
       ctx.save();
       ctx.translate(obs.x, obs.y);
 
       if (obs.type === "rock") {
-        ctx.fillStyle = "#555";
+        ctx.fillStyle = "#4a4a4a";
         ctx.beginPath();
-        ctx.ellipse(24, 32, 26, 20, 0, 0, Math.PI * 2);
+        ctx.ellipse(26, 30, 28, 22, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = "#444";
+        ctx.fillStyle = "#333";
         ctx.beginPath();
-        ctx.ellipse(18, 28, 12, 10, 0.3, 0, Math.PI * 2);
+        ctx.ellipse(18, 26, 13, 11, 0.4, 0, Math.PI * 2);
         ctx.fill();
       } 
       else if (obs.type === "barrel") {
         ctx.fillStyle = "#c8102e";
-        ctx.fillRect(8, 10, 32, 45);
+        ctx.fillRect(10, 12, 38, 48);
         ctx.fillStyle = "#f1c40f";
-        ctx.fillRect(8, 22, 32, 8);
-        ctx.fillStyle = "#222";
-        ctx.fillRect(12, 15, 24, 6);
+        ctx.fillRect(10, 28, 38, 9);
       } 
       else if (obs.type === "log") {
-        ctx.fillStyle = "#8d5524";
-        ctx.fillRect(5, 25, 45, 18);
-        ctx.fillStyle = "#6b3e1a";
-        ctx.fillRect(8, 28, 39, 5);
+        ctx.fillStyle = "#8d5f2e";
+        ctx.fillRect(8, 24, 52, 22);
+        ctx.fillStyle = "#6b4420";
+        for (let i = 0; i < 4; i++) {
+          ctx.fillRect(12 + i*11, 27, 6, 15);
+        }
       } 
       else if (obs.type === "box") {
+        ctx.fillStyle = "#b97a3d";
+        ctx.fillRect(12, 18, 40, 40);
         ctx.fillStyle = "#8b5a2b";
-        ctx.fillRect(10, 18, 35, 35);
-        ctx.fillStyle = "#5c3a1f";
-        ctx.fillRect(15, 23, 25, 8);
-        ctx.fillRect(15, 38, 25, 6);
+        ctx.fillRect(18, 24, 28, 8);
       }
 
       ctx.restore();
     }
 
-    function drawObstacles() {
-      for (let obs of obstacles) {
-        drawObstacle(obs);
-      }
-    }
-
     function drawParticles() {
       for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
-        ctx.globalAlpha = p.life / 28;
-        ctx.fillStyle = "#aaa";
-        ctx.fillRect(p.x, p.y, 7, 7);
+        ctx.globalAlpha = p.life / 30;
+        ctx.fillStyle = "#bbbbbb";
+        ctx.fillRect(p.x, p.y, p.size, p.size);
         
         p.x += p.vx;
         p.y += p.vy;
         p.life--;
-        p.vy += 0.25;
+        p.vy += 0.28;
         
         if (p.life <= 0) particles.splice(i, 1);
       }
@@ -232,39 +260,38 @@
 
       gameTime++;
 
-      if (gameTime % 260 === 0) {
-        bikeSpeed += 0.48;
-        level = Math.floor(bikeSpeed / 3.6) + 1;
+      if (gameTime % 240 === 0) {
+        bikeSpeed += 0.5;
+        level = Math.floor(bikeSpeed / 3.8) + 1;
         levelEl.textContent = `Nível ${level}`;
       }
-      if (bikeSpeed > 27) bikeSpeed = 27;
+      if (bikeSpeed > 28) bikeSpeed = 28;
 
-      if (keys["ArrowRight"]) bikeSpeed = Math.min(bikeSpeed + 0.4, 29);
-      if (keys["ArrowLeft"]) bikeSpeed = Math.max(bikeSpeed - 0.5, 5);
+      if (keys["ArrowRight"]) bikeSpeed = Math.min(bikeSpeed + 0.45, 30);
+      if (keys["ArrowLeft"]) bikeSpeed = Math.max(bikeSpeed - 0.6, 5);
 
       if ((keys[" "] || keys["ArrowUp"]) && !isJumping) {
-        velocityY = -19.5;
+        velocityY = -20;
         isJumping = true;
       }
 
       velocityY += gravity;
       bikeY += velocityY;
 
-      if (bikeY >= 340) {
-        bikeY = 340;
+      if (bikeY >= 355) {
+        bikeY = 355;
         velocityY = 0;
         isJumping = false;
       }
 
-      // Gerar obstáculos variados
-      if (Date.now() - lastObstacle > Math.max(600, 1550 - level * 85)) {
+      if (Date.now() - lastObstacle > Math.max(550, 1500 - level * 90)) {
         const types = ["rock", "barrel", "log", "box"];
         obstacles.push({
-          x: canvas.width + 30,
-          y: 335 + Math.random() * 12 - 6, // pequena variação de altura
-          type: types[Math.floor(Math.random() * types.length)],
-          width: 45,
-          height: 48
+          x: canvas.width + 40,
+          y: 340 + Math.random() * 18 - 9,
+          type: types[Math.floor(Math.random() * 4)],
+          width: 52,
+          height: 50
         });
         lastObstacle = Date.now();
       }
@@ -272,19 +299,15 @@
       for (let i = obstacles.length - 1; i >= 0; i--) {
         obstacles[i].x -= bikeSpeed;
 
-        const obs = obstacles[i];
-        if (
-          obs.x < bikeX + 85 &&
-          obs.x + obs.width > bikeX + 15 &&
-          bikeY + 45 > obs.y
-        ) {
+        const o = obstacles[i];
+        if (o.x < bikeX + 88 && o.x + o.width > bikeX + 18 && bikeY + 48 > o.y) {
           gameOver = true;
         }
 
-        if (obs.x < -80) obstacles.splice(i, 1);
+        if (o.x < -100) obstacles.splice(i, 1);
       }
 
-      if (Math.random() < 0.65) createParticles(bikeX + 18, bikeY);
+      if (Math.random() < 0.7) createParticles(bikeX + 20, bikeY);
       score += Math.floor(bikeSpeed / 3);
       scoreEl.textContent = score;
     }
@@ -292,23 +315,23 @@
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawBackground();
-      drawObstacles();
+      obstacles.forEach(drawObstacle);
       drawBike();
       drawParticles();
 
       if (gameOver) {
-        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        ctx.fillStyle = "rgba(0,0,0,0.88)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         ctx.fillStyle = "#fff";
-        ctx.font = "bold 62px Arial";
+        ctx.font = "bold 68px Arial";
         ctx.textAlign = "center";
-        ctx.fillText("GAME OVER", canvas.width/2, 200);
+        ctx.fillText("GAME OVER", canvas.width/2, 210);
         
-        ctx.font = "32px Arial";
-        ctx.fillText(`Distância: ${score}m`, canvas.width/2, 270);
-        ctx.fillText(`Nível alcançado: ${level}`, canvas.width/2, 315);
-        ctx.fillText("Pressione F5 para reiniciar", canvas.width/2, 380);
+        ctx.font = "34px Arial";
+        ctx.fillText(`Distância: ${score}m`, canvas.width/2, 290);
+        ctx.fillText(`Nível: ${level}`, canvas.width/2, 335);
+        ctx.fillText("Pressione F5 para jogar novamente", canvas.width/2, 400);
       }
     }
 
@@ -321,7 +344,7 @@
     gameLoop();
   </script>
 
-  <p style="position:absolute;bottom:15px;color:#ccc;text-align:center;width:100%;font-size:14px;">
+  <p style="position:absolute;bottom:18px;color:#bbb;text-align:center;width:100%;font-size:15px;">
     ← → : Velocidade | ESPAÇO ou ↑ : Pular
   </p>
 </body>
