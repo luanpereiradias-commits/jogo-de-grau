@@ -1,447 +1,207 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Protótipo Moto X3M Clone</title>
-    <style>
-        body { margin: 0; padding: 0; background-color: #111; overflow: hidden; font-family: sans-serif; color: white; }
-        #canvas-container { display: flex; justify-content: center; align-items: center; height: 100vh; }
-        #controles { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; pointer-events: none; }
-        #placar { position: absolute; bottom: 10px; right: 10px; font-size: 24px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏍️ Moto Runner</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #111;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      border: 4px solid #fff;
+      box-shadow: 0 0 20px rgba(0,255,0,0.3);
+    }
+    #info {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 20px;
+      text-shadow: 2px 2px 4px black;
+    }
+  </style>
 </head>
 <body>
+  <div id="info">Distância: <span id="score">0</span>m</div>
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
 
-    <div id="controles">
-        <h3>Controles (Setas):</h3>
-        <p>↑ : Acelerar | ↓ : Frear/Ré</p>
-        <p>← : Inclinar Trás | → : Inclinar Frente</p>
-    </div>
-    
-    <div id="placar">Distância: 0m</div>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreElement = document.getElementById("score");
 
-    <div id="canvas-container"></div>
+    // Variáveis do jogo
+    let bikeX = 100;
+    let bikeY = 280;
+    let bikeSpeed = 8;
+    let velocityY = 0;
+    let gravity = 0.8;
+    let isJumping = false;
+    let score = 0;
+    let gameOver = false;
 
-    <script>
-        // Módulos principais do Matter.js
-        const { Engine, Render, Runner, Bodies, Composite, Constraint, Body, Vector, Events } = Matter;
+    // Obstáculos
+    let obstacles = [];
+    let lastObstacle = 0;
 
-        // --- CONFIGURAÇÃO INICIAL ---
-        const larguraCanvas = 1200;
-        const alturaCanvas = 600;
-        const offsetCamera = { x: larguraCanvas / 3, y: alturaCanvas / 2 }; // Posição fixa da moto na tela
+    // Controles
+    let keys = {};
 
-        const engine = Engine.create();
-        const world = engine.world;
-        engine.gravity.y = 1.2; // Gravidade mais forte para física arcade
+    window.addEventListener("keydown", (e) => keys[e.key] = true);
+    window.addEventListener("keyup", (e) => keys[e.key] = false);
 
-        const render = Render.create({
-            element: document.getElementById('canvas-container'),
-            engine: engine,
-            options: {
-                width: larguraCanvas,
-                height: alturaCanvas,
-                wireframes: false, // Desativa wireframes para ver cores
-                background: '#20293a',
-                hasBounds: true // Necessário para a câmera
-            }
+    // Desenhar moto (simples)
+    function drawBike() {
+      // Corpo da moto
+      ctx.fillStyle = "#ff0000";
+      ctx.fillRect(bikeX, bikeY, 60, 25);           // corpo
+      
+      // Roda traseira
+      ctx.fillStyle = "#333";
+      ctx.beginPath();
+      ctx.arc(bikeX + 10, bikeY + 30, 15, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Roda dianteira
+      ctx.beginPath();
+      ctx.arc(bikeX + 50, bikeY + 30, 15, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Guidão
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(bikeX + 45, bikeY + 10);
+      ctx.lineTo(bikeX + 55, bikeY - 5);
+      ctx.stroke();
+
+      // Piloto
+      ctx.fillStyle = "#00aaff";
+      ctx.fillRect(bikeX + 25, bikeY - 15, 20, 20); // capacete
+    }
+
+    // Desenhar chão
+    function drawGround() {
+      ctx.fillStyle = "#228B22";
+      ctx.fillRect(0, 340, canvas.width, canvas.height - 340);
+      
+      // Faixas da estrada
+      ctx.fillStyle = "#FFD700";
+      for (let i = 0; i < canvas.width; i += 60) {
+        ctx.fillRect(i - (score % 60), 355, 30, 8);
+      }
+    }
+
+    // Desenhar obstáculos
+    function drawObstacles() {
+      ctx.fillStyle = "#8B4513";
+      for (let obs of obstacles) {
+        ctx.fillRect(obs.x, obs.y, 40, 50); // obstáculo (caixa/rocha)
+      }
+    }
+
+    function update() {
+      if (gameOver) return;
+
+      // Acelerar / Desacelerar
+      if (keys["ArrowRight"]) bikeSpeed = Math.min(bikeSpeed + 0.2, 15);
+      if (keys["ArrowLeft"]) bikeSpeed = Math.max(bikeSpeed - 0.3, 4);
+
+      // Pular
+      if ((keys[" "] || keys["ArrowUp"]) && !isJumping) {
+        velocityY = -18;
+        isJumping = true;
+      }
+
+      // Física do pulo
+      velocityY += gravity;
+      bikeY += velocityY;
+
+      // Colisão com chão
+      if (bikeY >= 280) {
+        bikeY = 280;
+        velocityY = 0;
+        isJumping = false;
+      }
+
+      // Gerar obstáculos
+      if (Date.now() - lastObstacle > 1200) {
+        obstacles.push({
+          x: canvas.width,
+          y: 290
         });
+        lastObstacle = Date.now();
+      }
 
-        Render.run(render);
-        const runner = Runner.create();
-        Runner.run(runner, engine);
+      // Mover obstáculos
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].x -= bikeSpeed;
 
-        const placar = document.getElementById('placar');
-
-        // --- DEFINIÇÕES DA MOTO ---
-        const configMoto = {
-            posInicial: { x: 200, y: 400 },
-            corpo: { w: 100, h: 25, cor: '#e67e22' }, // Cor laranja do X3M
-            roda: { r: 24, cor: '#2c3e50', atrito: 1.0, densidade: 0.005 },
-            piloto: { r: 18, cor: '#ecf0f1' }, // Cabeça branca (capacete)
-            suspensao: { stiffness: 0.5, length: 15, cor: '#7f8c8d', width: 4 }
-        };
-
-        // --- CRIANDO O CENÁRIO (PISTA INFINTA GERADA LOGO) ---
-        const configChao = { isStatic: true, friction: 1, render: { fillStyle: '#2ecc71' } };
-        const pista = [];
-        let fimPistaX = 0;
-
-        // Função para gerar segmentos de pista (Rampas e Planos)
-        function gerarPista(numSegmentos, startX, startY) {
-            let x = startX;
-            let y = startY;
-
-            for (let i = 0; i < numSegmentos; i++) {
-                let largura = 300 + Math.random() * 200;
-                let inclinacao = (Math.random() - 0.5) * 0.4; // Ângulo em radianos
-                
-                // Evita rampas muito inclinadas no início
-                if (x < 1000) inclinacao = (Math.random() - 0.2) * 0.1;
-
-                // Garante que a moto comece no plano
-                if (i === 0) inclinacao = 0;
-
-                const segmento = Bodies.rectangle(
-                    x + largura / 2, 
-                    y - (Math.sin(inclinacao) * largura) / 2, 
-                    largura, 
-                    40, 
-                    { ...configChao, angle: inclinacao }
-                );
-                pista.push(segmento);
-                Composite.add(world, segmento);
-
-                // Atualiza o ponto final para o próximo segmento
-                x += Math.cos(inclinacao) * largura;
-                y -= Math.sin(inclinacao) * largura;
-            }
-            fimPistaX = x;
+        // Colisão
+        if (
+          obstacles[i].x < bikeX + 60 &&
+          obstacles[i].x + 40 > bikeX &&
+          obstacles[i].y < bikeY + 40 &&
+          obstacles[i].y + 50 > bikeY
+        ) {
+          gameOver = true;
         }
 
-        // Gera a pista inicial (40 segmentos)
-        gerarPista(40, 0, 550);
-
-        // --- CRIANDO A MOTO E O PILOTO ---
-        // 1. O Corpo (Chassi)
-        const chassi = Bodies.rectangle(configMoto.posInicial.x, configMoto.posInicial.y, configMoto.corpo.w, configMoto.corpo.h, {
-            collisionFilter: { group: -1 }, // Impede que as rodas colidam com o chassi
-            render: { fillStyle: configMoto.corpo.cor }
-        });
-
-        // 2. O Piloto (Apenas Cabeça para simplicidade visual)
-        const piloto = Bodies.circle(configMoto.posInicial.x, configMoto.posInicial.y - 45, configMoto.piloto.r, {
-            collisionFilter: { group: -1 },
-            render: { fillStyle: configMoto.piloto.cor, strokeStyle: '#34495e', lineWidth: 3 }
-        });
-
-        // 3. As Rodas (Círculos com alta tração)
-        const rodaOpcoes = { 
-            friction: configMoto.roda.atrito, 
-            density: configMoto.roda.densidade, 
-            collisionFilter: { group: -1 },
-            render: { fillStyle: configMoto.roda.cor }
-        };
-        const rodaTraseira = Bodies.circle(configMoto.posInicial.x - 45, configMoto.posInicial.y + 25, configMoto.roda.r, rodaOpcoes);
-        const rodaDianteira = Bodies.circle(configMoto.posInicial.x + 45, configMoto.posInicial.y + 25, configMoto.roda.r, rodaOpcoes);
-
-        // 4. A Suspensão (Uniões elásticas)
-        const suspTraseira = Constraint.create({
-            bodyA: chassi, bodyB: rodaTraseira,
-            pointA: { x: -45, y: configMoto.corpo.h / 2 },
-            stiffness: configMoto.suspensao.stiffness, length: configMoto.suspensao.length,
-            render: { strokeStyle: configMoto.suspensao.cor, lineWidth: configMoto.suspensao.width }
-        });
-
-        const suspDianteira = Constraint.create({
-            bodyA: chassi, bodyB: rodaDianteira,
-            pointA: { x: 45, y: configMoto.corpo.h / 2 },
-            stiffness: configMoto.suspensao.stiffness, length: configMoto.suspensao.length,
-            render: { strokeStyle: configMoto.suspensao.cor, lineWidth: configMoto.suspensao.width }
-        });
-
-        // 5. Conexão Piloto-Moto
-        const pesoco = Constraint.create({
-            bodyA: chassi, bodyB: piloto,
-            pointA: { x: 0, y: -20 },
-            stiffness: 0.1, length: 15, // Mais solto para balançar
-            render: { visible: false }
-        });
-
-        // Adiciona todos os componentes da moto ao mundo
-        Composite.add(world, [chassi, piloto, rodaTraseira, rodaDianteira, suspTraseira, suspDianteira, pesoco]);
-
-        // --- CONTROLES E MECÂNICA DO JOGO ---
-        const teclas = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
-        window.addEventListener('keydown', (e) => teclas[e.code] = true);
-        window.addEventListener('keyup', (e) => teclas[e.code] = false);
-
-        // Função principal de atualização do jogo (Game Loop)
-        Events.on(engine, 'beforeUpdate', function() {
-            
-            // 1. Torque do Motor (Tração Traseira)
-            const velocidadeAlvoRoda = 0.4; // Força do motor
-            if (teclas['ArrowUp']) {
-                Body.setAngularVelocity(rodaTraseira, velocidadeAlvoRoda);
-            }
-            if (teclas['ArrowDown']) {
-                Body.setAngularVelocity(rodaTraseira, -velocidadeAlvoRoda / 2); // Ré/Freio
-            }
-
-            // 2. Controle de Ar (Flips) - Aplica torque ao Chassi
-            const forcaFlip = 0.08;
-            if (teclas['ArrowLeft']) {
-                Body.setAngularVelocity(chassi, -forcaFlip);
-            }
-            if (teclas['ArrowRight']) {
-                Body.setAngularVelocity(chassi, forcaFlip);
-            }
-
-            // 3. Atualizar Câmera Dinâmica (Segue a Moto)
-            render.bounds.min.x = chassi.position.x - offsetCamera.x;
-            render.bounds.max.x = chassi.position.x + (larguraCanvas - offsetCamera.x);
-            // Câmera vertical segue a moto ligeiramente mais devagar
-            render.bounds.min.y = chassi.position.y * 0.8 - offsetCamera.y;
-            render.bounds.max.y = chassi.position.y * 0.8 + (alturaCanvas - offsetCamera.y);
-
-            // 4. Atualizar Placar e Gerar mais pista
-            placar.innerText = `Distância: ${Math.floor(chassi.position.x / 100)}m`;
-            if (chassi.position.x > fimPistaX - larguraCanvas * 2) {
-                gerarPista(20, fimPistaX, pista[pista.length - 1].position.y);
-            }
-
-            // 5. Condição de Reinício (Abismo ou Capotamento)
-            // Se o piloto tocar o chão ou a moto cair muito fundo
-            const toquePilotoChao = Matter.Query.collides(piloto, pista).length > 0;
-            if (chassi.position.y > 2000 || toquePilotoChao) {
-                alert(`Fim de Jogo!\nDistância total: ${Math.floor(chassi.position.x / 100)}m`);
-                reiniciarJogo();
-            }
-        });
-
-        function reiniciarJogo() {
-            Body.setPosition(chassi, configMoto.posInicial);
-            Body.setVelocity(chassi, { x: 0, y: 0 });
-            Body.setAngularVelocity(chassi, 0);
-
-            Body.setPosition(piloto, { x: configMoto.posInicial.x, y: configMoto.posInicial.y - 45 });
-            Body.setVelocity(piloto, { x: 0, y: 0 });
-            Body.setAngularVelocity(piloto, 0);
-
-            Body.setPosition(rodaTraseira, { x: configMoto.posInicial.x - 45, y: configMoto.posInicial.y + 25 });
-            Body.setVelocity(rodaTraseira, { x: 0, y: 0 });
-            Body.setAngularVelocity(rodaTraseira, 0);
-
-            Body.setPosition(rodaDianteira, { x: configMoto.posInicial.x + 45, y: configMoto.posInicial.y + 25 });
-            Body.setVelocity(rodaDianteira, { x: 0, y: 0 });
-            Body.setAngularVelocity(rodaDianteira, 0);
+        // Remover obstáculos fora da tela
+        if (obstacles[i].x < -50) {
+          obstacles.splice(i, 1);
         }
+      }
 
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Protótipo Moto X3M Clone</title>
-    <style>
-        body { margin: 0; padding: 0; background-color: #111; overflow: hidden; font-family: sans-serif; color: white; }
-        #canvas-container { display: flex; justify-content: center; align-items: center; height: 100vh; }
-        #controles { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; pointer-events: none; }
-        #placar { position: absolute; bottom: 10px; right: 10px; font-size: 24px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; }
-    </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-</head>
-<body>
+      score += Math.floor(bikeSpeed / 2);
+      scoreElement.textContent = score;
+    }
 
-    <div id="controles">
-        <h3>Controles (Setas):</h3>
-        <p>↑ : Acelerar | ↓ : Frear/Ré</p>
-        <p>← : Inclinar Trás | → : Inclinar Frente</p>
-    </div>
-    
-    <div id="placar">Distância: 0m</div>
+    function draw() {
+      // Limpar tela
+      ctx.fillStyle = "#87CEEB";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    <div id="canvas-container"></div>
+      drawGround();
+      drawObstacles();
+      drawBike();
 
-    <script>
-        // Módulos principais do Matter.js
-        const { Engine, Render, Runner, Bodies, Composite, Constraint, Body, Vector, Events } = Matter;
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 50px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2 - 30);
+        
+        ctx.font = "30px Arial";
+        ctx.fillText(`Distância: ${score}m`, canvas.width/2, canvas.height/2 + 30);
+        ctx.fillText("Pressione F5 para jogar novamente", canvas.width/2, canvas.height/2 + 80);
+      }
+    }
 
-        // --- CONFIGURAÇÃO INICIAL ---
-        const larguraCanvas = 1200;
-        const alturaCanvas = 600;
-        const offsetCamera = { x: larguraCanvas / 3, y: alturaCanvas / 2 }; // Posição fixa da moto na tela
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
 
-        const engine = Engine.create();
-        const world = engine.world;
-        engine.gravity.y = 1.2; // Gravidade mais forte para física arcade
+    // Iniciar jogo
+    gameLoop();
+  </script>
 
-        const render = Render.create({
-            element: document.getElementById('canvas-container'),
-            engine: engine,
-            options: {
-                width: larguraCanvas,
-                height: alturaCanvas,
-                wireframes: false, // Desativa wireframes para ver cores
-                background: '#20293a',
-                hasBounds: true // Necessário para a câmera
-            }
-        });
-
-        Render.run(render);
-        const runner = Runner.create();
-        Runner.run(runner, engine);
-
-        const placar = document.getElementById('placar');
-
-        // --- DEFINIÇÕES DA MOTO ---
-        const configMoto = {
-            posInicial: { x: 200, y: 400 },
-            corpo: { w: 100, h: 25, cor: '#e67e22' }, // Cor laranja do X3M
-            roda: { r: 24, cor: '#2c3e50', atrito: 1.0, densidade: 0.005 },
-            piloto: { r: 18, cor: '#ecf0f1' }, // Cabeça branca (capacete)
-            suspensao: { stiffness: 0.5, length: 15, cor: '#7f8c8d', width: 4 }
-        };
-
-        // --- CRIANDO O CENÁRIO (PISTA INFINTA GERADA LOGO) ---
-        const configChao = { isStatic: true, friction: 1, render: { fillStyle: '#2ecc71' } };
-        const pista = [];
-        let fimPistaX = 0;
-
-        // Função para gerar segmentos de pista (Rampas e Planos)
-        function gerarPista(numSegmentos, startX, startY) {
-            let x = startX;
-            let y = startY;
-
-            for (let i = 0; i < numSegmentos; i++) {
-                let largura = 300 + Math.random() * 200;
-                let inclinacao = (Math.random() - 0.5) * 0.4; // Ângulo em radianos
-                
-                // Evita rampas muito inclinadas no início
-                if (x < 1000) inclinacao = (Math.random() - 0.2) * 0.1;
-
-                // Garante que a moto comece no plano
-                if (i === 0) inclinacao = 0;
-
-                const segmento = Bodies.rectangle(
-                    x + largura / 2, 
-                    y - (Math.sin(inclinacao) * largura) / 2, 
-                    largura, 
-                    40, 
-                    { ...configChao, angle: inclinacao }
-                );
-                pista.push(segmento);
-                Composite.add(world, segmento);
-
-                // Atualiza o ponto final para o próximo segmento
-                x += Math.cos(inclinacao) * largura;
-                y -= Math.sin(inclinacao) * largura;
-            }
-            fimPistaX = x;
-        }
-
-        // Gera a pista inicial (40 segmentos)
-        gerarPista(40, 0, 550);
-
-        // --- CRIANDO A MOTO E O PILOTO ---
-        // 1. O Corpo (Chassi)
-        const chassi = Bodies.rectangle(configMoto.posInicial.x, configMoto.posInicial.y, configMoto.corpo.w, configMoto.corpo.h, {
-            collisionFilter: { group: -1 }, // Impede que as rodas colidam com o chassi
-            render: { fillStyle: configMoto.corpo.cor }
-        });
-
-        // 2. O Piloto (Apenas Cabeça para simplicidade visual)
-        const piloto = Bodies.circle(configMoto.posInicial.x, configMoto.posInicial.y - 45, configMoto.piloto.r, {
-            collisionFilter: { group: -1 },
-            render: { fillStyle: configMoto.piloto.cor, strokeStyle: '#34495e', lineWidth: 3 }
-        });
-
-        // 3. As Rodas (Círculos com alta tração)
-        const rodaOpcoes = { 
-            friction: configMoto.roda.atrito, 
-            density: configMoto.roda.densidade, 
-            collisionFilter: { group: -1 },
-            render: { fillStyle: configMoto.roda.cor }
-        };
-        const rodaTraseira = Bodies.circle(configMoto.posInicial.x - 45, configMoto.posInicial.y + 25, configMoto.roda.r, rodaOpcoes);
-        const rodaDianteira = Bodies.circle(configMoto.posInicial.x + 45, configMoto.posInicial.y + 25, configMoto.roda.r, rodaOpcoes);
-
-        // 4. A Suspensão (Uniões elásticas)
-        const suspTraseira = Constraint.create({
-            bodyA: chassi, bodyB: rodaTraseira,
-            pointA: { x: -45, y: configMoto.corpo.h / 2 },
-            stiffness: configMoto.suspensao.stiffness, length: configMoto.suspensao.length,
-            render: { strokeStyle: configMoto.suspensao.cor, lineWidth: configMoto.suspensao.width }
-        });
-
-        const suspDianteira = Constraint.create({
-            bodyA: chassi, bodyB: rodaDianteira,
-            pointA: { x: 45, y: configMoto.corpo.h / 2 },
-            stiffness: configMoto.suspensao.stiffness, length: configMoto.suspensao.length,
-            render: { strokeStyle: configMoto.suspensao.cor, lineWidth: configMoto.suspensao.width }
-        });
-
-        // 5. Conexão Piloto-Moto
-        const pesoco = Constraint.create({
-            bodyA: chassi, bodyB: piloto,
-            pointA: { x: 0, y: -20 },
-            stiffness: 0.1, length: 15, // Mais solto para balançar
-            render: { visible: false }
-        });
-
-        // Adiciona todos os componentes da moto ao mundo
-        Composite.add(world, [chassi, piloto, rodaTraseira, rodaDianteira, suspTraseira, suspDianteira, pesoco]);
-
-        // --- CONTROLES E MECÂNICA DO JOGO ---
-        const teclas = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
-        window.addEventListener('keydown', (e) => teclas[e.code] = true);
-        window.addEventListener('keyup', (e) => teclas[e.code] = false);
-
-        // Função principal de atualização do jogo (Game Loop)
-        Events.on(engine, 'beforeUpdate', function() {
-            
-            // 1. Torque do Motor (Tração Traseira)
-            const velocidadeAlvoRoda = 0.4; // Força do motor
-            if (teclas['ArrowUp']) {
-                Body.setAngularVelocity(rodaTraseira, velocidadeAlvoRoda);
-            }
-            if (teclas['ArrowDown']) {
-                Body.setAngularVelocity(rodaTraseira, -velocidadeAlvoRoda / 2); // Ré/Freio
-            }
-
-            // 2. Controle de Ar (Flips) - Aplica torque ao Chassi
-            const forcaFlip = 0.08;
-            if (teclas['ArrowLeft']) {
-                Body.setAngularVelocity(chassi, -forcaFlip);
-            }
-            if (teclas['ArrowRight']) {
-                Body.setAngularVelocity(chassi, forcaFlip);
-            }
-
-            // 3. Atualizar Câmera Dinâmica (Segue a Moto)
-            render.bounds.min.x = chassi.position.x - offsetCamera.x;
-            render.bounds.max.x = chassi.position.x + (larguraCanvas - offsetCamera.x);
-            // Câmera vertical segue a moto ligeiramente mais devagar
-            render.bounds.min.y = chassi.position.y * 0.8 - offsetCamera.y;
-            render.bounds.max.y = chassi.position.y * 0.8 + (alturaCanvas - offsetCamera.y);
-
-            // 4. Atualizar Placar e Gerar mais pista
-            placar.innerText = `Distância: ${Math.floor(chassi.position.x / 100)}m`;
-            if (chassi.position.x > fimPistaX - larguraCanvas * 2) {
-                gerarPista(20, fimPistaX, pista[pista.length - 1].position.y);
-            }
-
-            // 5. Condição de Reinício (Abismo ou Capotamento)
-            // Se o piloto tocar o chão ou a moto cair muito fundo
-            const toquePilotoChao = Matter.Query.collides(piloto, pista).length > 0;
-            if (chassi.position.y > 2000 || toquePilotoChao) {
-                alert(`Fim de Jogo!\nDistância total: ${Math.floor(chassi.position.x / 100)}m`);
-                reiniciarJogo();
-            }
-        });
-
-        function reiniciarJogo() {
-            Body.setPosition(chassi, configMoto.posInicial);
-            Body.setVelocity(chassi, { x: 0, y: 0 });
-            Body.setAngularVelocity(chassi, 0);
-
-            Body.setPosition(piloto, { x: configMoto.posInicial.x, y: configMoto.posInicial.y - 45 });
-            Body.setVelocity(piloto, { x: 0, y: 0 });
-            Body.setAngularVelocity(piloto, 0);
-
-            Body.setPosition(rodaTraseira, { x: configMoto.posInicial.x - 45, y: configMoto.posInicial.y + 25 });
-            Body.setVelocity(rodaTraseira, { x: 0, y: 0 });
-            Body.setAngularVelocity(rodaTraseira, 0);
-
-            Body.setPosition(rodaDianteira, { x: configMoto.posInicial.x + 45, y: configMoto.posInicial.y + 25 });
-            Body.setVelocity(rodaDianteira, { x: 0, y: 0 });
-            Body.setAngularVelocity(rodaDianteira, 0);
-        }
-
-    </script>
+  <p style="position:absolute;bottom:10px;color:#aaa;text-align:center;width:100%;">
+    ← → : Velocidade | ESPAÇO ou ↑ : Pular
+  </p>
 </body>
 </html>
