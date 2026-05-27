@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🏍️ Moto Runner</title>
+  <title>🏍️ Moto Runner - Velocidade Crescente</title>
   <style>
     body {
       margin: 0;
@@ -25,58 +25,62 @@
       left: 50%;
       transform: translateX(-50%);
       color: white;
-      font-size: 20px;
+      font-size: 22px;
+      text-shadow: 2px 2px 4px black;
+    }
+    #level {
+      position: absolute;
+      top: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #ffcc00;
+      font-size: 18px;
       text-shadow: 2px 2px 4px black;
     }
   </style>
 </head>
 <body>
   <div id="info">Distância: <span id="score">0</span>m</div>
+  <div id="level">Nível 1</div>
   <canvas id="gameCanvas" width="800" height="400"></canvas>
 
   <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const scoreElement = document.getElementById("score");
+    const levelElement = document.getElementById("level");
 
-    // Variáveis do jogo
     let bikeX = 100;
     let bikeY = 280;
-    let bikeSpeed = 8;
+    let bikeSpeed = 6;           // Velocidade inicial
     let velocityY = 0;
     let gravity = 0.8;
     let isJumping = false;
     let score = 0;
+    let gameTime = 0;
+    let level = 1;
     let gameOver = false;
 
-    // Obstáculos
     let obstacles = [];
     let lastObstacle = 0;
 
-    // Controles
     let keys = {};
 
     window.addEventListener("keydown", (e) => keys[e.key] = true);
     window.addEventListener("keyup", (e) => keys[e.key] = false);
 
-    // Desenhar moto (simples)
     function drawBike() {
-      // Corpo da moto
       ctx.fillStyle = "#ff0000";
-      ctx.fillRect(bikeX, bikeY, 60, 25);           // corpo
+      ctx.fillRect(bikeX, bikeY, 60, 25);
       
-      // Roda traseira
       ctx.fillStyle = "#333";
       ctx.beginPath();
       ctx.arc(bikeX + 10, bikeY + 30, 15, 0, Math.PI * 2);
       ctx.fill();
-      
-      // Roda dianteira
       ctx.beginPath();
       ctx.arc(bikeX + 50, bikeY + 30, 15, 0, Math.PI * 2);
       ctx.fill();
 
-      // Guidão
       ctx.strokeStyle = "#000";
       ctx.lineWidth = 6;
       ctx.beginPath();
@@ -84,37 +88,45 @@
       ctx.lineTo(bikeX + 55, bikeY - 5);
       ctx.stroke();
 
-      // Piloto
       ctx.fillStyle = "#00aaff";
-      ctx.fillRect(bikeX + 25, bikeY - 15, 20, 20); // capacete
+      ctx.fillRect(bikeX + 25, bikeY - 15, 20, 20);
     }
 
-    // Desenhar chão
     function drawGround() {
       ctx.fillStyle = "#228B22";
-      ctx.fillRect(0, 340, canvas.width, canvas.height - 340);
+      ctx.fillRect(0, 340, canvas.width, 60);
       
-      // Faixas da estrada
       ctx.fillStyle = "#FFD700";
-      for (let i = 0; i < canvas.width; i += 60) {
-        ctx.fillRect(i - (score % 60), 355, 30, 8);
+      for (let i = 0; i < canvas.width + 60; i += 60) {
+        ctx.fillRect((i - (score % 60)) % (canvas.width + 60), 355, 30, 8);
       }
     }
 
-    // Desenhar obstáculos
     function drawObstacles() {
       ctx.fillStyle = "#8B4513";
       for (let obs of obstacles) {
-        ctx.fillRect(obs.x, obs.y, 40, 50); // obstáculo (caixa/rocha)
+        ctx.fillRect(obs.x, obs.y, 40, 50);
       }
     }
 
     function update() {
       if (gameOver) return;
 
-      // Acelerar / Desacelerar
-      if (keys["ArrowRight"]) bikeSpeed = Math.min(bikeSpeed + 0.2, 15);
-      if (keys["ArrowLeft"]) bikeSpeed = Math.max(bikeSpeed - 0.3, 4);
+      gameTime++;
+
+      // === AUMENTO DE VELOCIDADE AO LONGO DO TEMPO ===
+      if (gameTime % 300 === 0) {        // A cada ~5 segundos (60fps)
+        bikeSpeed += 0.4;
+        level = Math.floor(bikeSpeed / 3) + 1;
+        levelElement.textContent = `Nível ${level}`;
+      }
+
+      // Limitar velocidade máxima
+      if (bikeSpeed > 22) bikeSpeed = 22;
+
+      // Controles do jogador
+      if (keys["ArrowRight"]) bikeSpeed = Math.min(bikeSpeed + 0.3, 24);
+      if (keys["ArrowLeft"]) bikeSpeed = Math.max(bikeSpeed - 0.4, 5);
 
       // Pular
       if ((keys[" "] || keys["ArrowUp"]) && !isJumping) {
@@ -122,23 +134,19 @@
         isJumping = true;
       }
 
-      // Física do pulo
       velocityY += gravity;
       bikeY += velocityY;
 
-      // Colisão com chão
       if (bikeY >= 280) {
         bikeY = 280;
         velocityY = 0;
         isJumping = false;
       }
 
-      // Gerar obstáculos
-      if (Date.now() - lastObstacle > 1200) {
-        obstacles.push({
-          x: canvas.width,
-          y: 290
-        });
+      // Gerar obstáculos (fica mais rápido com o nível)
+      const spawnRate = Math.max(800, 1400 - level * 80);
+      if (Date.now() - lastObstacle > spawnRate) {
+        obstacles.push({ x: canvas.width, y: 290 });
         lastObstacle = Date.now();
       }
 
@@ -148,26 +156,21 @@
 
         // Colisão
         if (
-          obstacles[i].x < bikeX + 60 &&
-          obstacles[i].x + 40 > bikeX &&
-          obstacles[i].y < bikeY + 40 &&
-          obstacles[i].y + 50 > bikeY
+          obstacles[i].x < bikeX + 55 &&
+          obstacles[i].x + 40 > bikeX + 10 &&
+          bikeY + 40 > obstacles[i].y
         ) {
           gameOver = true;
         }
 
-        // Remover obstáculos fora da tela
-        if (obstacles[i].x < -50) {
-          obstacles.splice(i, 1);
-        }
+        if (obstacles[i].x < -50) obstacles.splice(i, 1);
       }
 
-      score += Math.floor(bikeSpeed / 2);
+      score += Math.floor(bikeSpeed / 3);
       scoreElement.textContent = score;
     }
 
     function draw() {
-      // Limpar tela
       ctx.fillStyle = "#87CEEB";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -176,17 +179,18 @@
       drawBike();
 
       if (gameOver) {
-        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillStyle = "rgba(0,0,0,0.75)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         ctx.fillStyle = "#fff";
-        ctx.font = "bold 50px Arial";
+        ctx.font = "bold 55px Arial";
         ctx.textAlign = "center";
-        ctx.fillText("GAME OVER", canvas.width/2, canvas.height/2 - 30);
+        ctx.fillText("GAME OVER", canvas.width/2, 160);
         
         ctx.font = "30px Arial";
-        ctx.fillText(`Distância: ${score}m`, canvas.width/2, canvas.height/2 + 30);
-        ctx.fillText("Pressione F5 para jogar novamente", canvas.width/2, canvas.height/2 + 80);
+        ctx.fillText(`Distância final: ${score}m`, canvas.width/2, 220);
+        ctx.fillText(`Nível alcançado: ${level}`, canvas.width/2, 260);
+        ctx.fillText("Pressione F5 para jogar novamente", canvas.width/2, 320);
       }
     }
 
@@ -196,12 +200,11 @@
       requestAnimationFrame(gameLoop);
     }
 
-    // Iniciar jogo
     gameLoop();
   </script>
 
   <p style="position:absolute;bottom:10px;color:#aaa;text-align:center;width:100%;">
-    ← → : Velocidade | ESPAÇO ou ↑ : Pular
+    ← → : Ajustar velocidade | ESPAÇO ou ↑ : Pular
   </p>
 </body>
 </html>
