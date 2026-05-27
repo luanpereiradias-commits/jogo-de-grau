@@ -67,52 +67,45 @@
     window.addEventListener("keydown", e => keys[e.key] = true);
     window.addEventListener("keyup", e => keys[e.key] = false);
 
-    // Partículas de poeira
     function createParticles(x, y) {
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 7; i++) {
         particles.push({
-          x: x + 10,
-          y: y + 35,
-          vx: -bikeSpeed * 0.3 - Math.random() * 3,
-          vy: -1 - Math.random() * 2,
-          life: 25
+          x: x + 15,
+          y: y + 40,
+          vx: -bikeSpeed * 0.4 - Math.random() * 3,
+          vy: -1.5 - Math.random() * 2,
+          life: 28
         });
       }
     }
 
     function drawBackground() {
-      // Céu gradiente
       const grad = ctx.createLinearGradient(0, 0, 0, 300);
       grad.addColorStop(0, "#1e90ff");
       grad.addColorStop(1, "#87ceeb");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, canvas.width, 380);
 
-      // Sol
       ctx.fillStyle = "#ffeb3b";
       ctx.beginPath();
-      ctx.arc(700, 120, 45, 0, Math.PI * 2);
+      ctx.arc(720, 110, 48, 0, Math.PI * 2);
       ctx.fill();
 
-      // Montanhas
       ctx.fillStyle = "#2e8b57";
       ctx.beginPath();
       ctx.moveTo(0, 380);
-      ctx.lineTo(200, 180);
-      ctx.lineTo(450, 380);
-      ctx.lineTo(650, 220);
+      ctx.lineTo(180, 190);
+      ctx.lineTo(420, 380);
+      ctx.lineTo(620, 230);
       ctx.lineTo(900, 380);
       ctx.fill();
 
-      // Estrada
       ctx.fillStyle = "#333";
       ctx.fillRect(0, 380, canvas.width, 120);
 
-      // Grama
       ctx.fillStyle = "#1e5c1e";
       ctx.fillRect(0, 370, canvas.width, 15);
 
-      // Linhas da estrada
       ctx.strokeStyle = "#ffeb3b";
       ctx.lineWidth = 8;
       for (let i = -50; i < canvas.width + 50; i += 80) {
@@ -125,91 +118,113 @@
     }
 
     function drawBike() {
-      wheelAngle += bikeSpeed * 0.12;
+      wheelAngle += bikeSpeed * 0.13;
 
-      // Sombra
       ctx.fillStyle = "rgba(0,0,0,0.3)";
-      ctx.fillRect(bikeX + 15, bikeY + 45, 65, 12);
+      ctx.fillRect(bikeX + 15, bikeY + 48, 70, 14);
 
-      // Corpo da moto
       ctx.fillStyle = "#e63939";
-      ctx.fillRect(bikeX + 10, bikeY + 10, 75, 28);
+      ctx.fillRect(bikeX + 10, bikeY + 12, 78, 30);
 
-      // Detalhes cromados
       ctx.fillStyle = "#ddd";
-      ctx.fillRect(bikeX + 20, bikeY + 18, 55, 8);
+      ctx.fillRect(bikeX + 18, bikeY + 20, 60, 9);
 
       // Rodas
       ctx.strokeStyle = "#111";
-      ctx.lineWidth = 18;
-      ctx.beginPath();
-      ctx.arc(bikeX + 20, bikeY + 45, 18, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(bikeX + 75, bikeY + 45, 18, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.lineWidth = 19;
+      ctx.beginPath(); ctx.arc(bikeX + 22, bikeY + 47, 18, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(bikeX + 78, bikeY + 47, 18, 0, Math.PI * 2); ctx.stroke();
 
-      // Aros das rodas
       ctx.strokeStyle = "#ddd";
-      ctx.lineWidth = 6;
+      ctx.lineWidth = 7;
       ctx.save();
-      ctx.translate(bikeX + 20, bikeY + 45);
+      ctx.translate(bikeX + 22, bikeY + 47);
       ctx.rotate(wheelAngle);
-      ctx.beginPath();
-      ctx.arc(0, 0, 12, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
 
       ctx.save();
-      ctx.translate(bikeX + 75, bikeY + 45);
-      ctx.rotate(wheelAngle * 0.9);
-      ctx.beginPath();
-      ctx.arc(0, 0, 12, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.translate(bikeX + 78, bikeY + 47);
+      ctx.rotate(wheelAngle);
+      ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
 
-      // Guidão
       ctx.strokeStyle = "#222";
       ctx.lineWidth = 9;
       ctx.beginPath();
-      ctx.moveTo(bikeX + 65, bikeY + 18);
-      ctx.quadraticCurveTo(bikeX + 85, bikeY + 5, bikeX + 95, bikeY - 8);
+      ctx.moveTo(bikeX + 70, bikeY + 20);
+      ctx.quadraticCurveTo(bikeX + 88, bikeY + 8, bikeX + 98, bikeY - 10);
       ctx.stroke();
 
-      // Piloto
       ctx.fillStyle = "#222";
-      ctx.fillRect(bikeX + 35, bikeY - 18, 28, 25); // corpo
+      ctx.fillRect(bikeX + 38, bikeY - 15, 30, 27);
       ctx.fillStyle = "#ffdbac";
-      ctx.fillRect(bikeX + 42, bikeY - 28, 18, 18); // cabeça
-
-      // Capacete
+      ctx.fillRect(bikeX + 44, bikeY - 28, 20, 20);
       ctx.fillStyle = "#111";
-      ctx.fillRect(bikeX + 40, bikeY - 32, 22, 12);
+      ctx.fillRect(bikeX + 43, bikeY - 33, 23, 13);
+    }
+
+    // ==================== NOVOS OBSTÁCULOS ====================
+    function drawObstacle(obs) {
+      ctx.save();
+      ctx.translate(obs.x, obs.y);
+
+      if (obs.type === "rock") {
+        ctx.fillStyle = "#555";
+        ctx.beginPath();
+        ctx.ellipse(24, 32, 26, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#444";
+        ctx.beginPath();
+        ctx.ellipse(18, 28, 12, 10, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+      } 
+      else if (obs.type === "barrel") {
+        ctx.fillStyle = "#c8102e";
+        ctx.fillRect(8, 10, 32, 45);
+        ctx.fillStyle = "#f1c40f";
+        ctx.fillRect(8, 22, 32, 8);
+        ctx.fillStyle = "#222";
+        ctx.fillRect(12, 15, 24, 6);
+      } 
+      else if (obs.type === "log") {
+        ctx.fillStyle = "#8d5524";
+        ctx.fillRect(5, 25, 45, 18);
+        ctx.fillStyle = "#6b3e1a";
+        ctx.fillRect(8, 28, 39, 5);
+      } 
+      else if (obs.type === "box") {
+        ctx.fillStyle = "#8b5a2b";
+        ctx.fillRect(10, 18, 35, 35);
+        ctx.fillStyle = "#5c3a1f";
+        ctx.fillRect(15, 23, 25, 8);
+        ctx.fillRect(15, 38, 25, 6);
+      }
+
+      ctx.restore();
     }
 
     function drawObstacles() {
       for (let obs of obstacles) {
-        ctx.fillStyle = "#5d4037";
-        ctx.fillRect(obs.x, obs.y, 48, 55);
-        
-        ctx.fillStyle = "#3e2723";
-        ctx.fillRect(obs.x + 8, obs.y + 8, 32, 15);
+        drawObstacle(obs);
       }
     }
 
     function drawParticles() {
       for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
-        ctx.fillStyle = `rgba(180,180,180,${p.life/25})`;
-        ctx.fillRect(p.x, p.y, 6, 6);
+        ctx.globalAlpha = p.life / 28;
+        ctx.fillStyle = "#aaa";
+        ctx.fillRect(p.x, p.y, 7, 7);
         
         p.x += p.vx;
         p.y += p.vy;
         p.life--;
-        p.vy += 0.2;
+        p.vy += 0.25;
         
         if (p.life <= 0) particles.splice(i, 1);
       }
+      ctx.globalAlpha = 1;
     }
 
     function update() {
@@ -217,21 +232,18 @@
 
       gameTime++;
 
-      // Aumento automático de velocidade
-      if (gameTime % 280 === 0) {
-        bikeSpeed += 0.45;
-        level = Math.floor(bikeSpeed / 3.5) + 1;
+      if (gameTime % 260 === 0) {
+        bikeSpeed += 0.48;
+        level = Math.floor(bikeSpeed / 3.6) + 1;
         levelEl.textContent = `Nível ${level}`;
       }
-      if (bikeSpeed > 26) bikeSpeed = 26;
+      if (bikeSpeed > 27) bikeSpeed = 27;
 
-      // Controles
-      if (keys["ArrowRight"]) bikeSpeed = Math.min(bikeSpeed + 0.4, 28);
+      if (keys["ArrowRight"]) bikeSpeed = Math.min(bikeSpeed + 0.4, 29);
       if (keys["ArrowLeft"]) bikeSpeed = Math.max(bikeSpeed - 0.5, 5);
 
-      // Pulo
       if ((keys[" "] || keys["ArrowUp"]) && !isJumping) {
-        velocityY = -19;
+        velocityY = -19.5;
         isJumping = true;
       }
 
@@ -244,30 +256,35 @@
         isJumping = false;
       }
 
-      // Obstáculos
-      if (Date.now() - lastObstacle > Math.max(650, 1600 - level * 90)) {
-        obstacles.push({ x: canvas.width + 50, y: 340 });
+      // Gerar obstáculos variados
+      if (Date.now() - lastObstacle > Math.max(600, 1550 - level * 85)) {
+        const types = ["rock", "barrel", "log", "box"];
+        obstacles.push({
+          x: canvas.width + 30,
+          y: 335 + Math.random() * 12 - 6, // pequena variação de altura
+          type: types[Math.floor(Math.random() * types.length)],
+          width: 45,
+          height: 48
+        });
         lastObstacle = Date.now();
       }
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
         obstacles[i].x -= bikeSpeed;
 
-        // Colisão
+        const obs = obstacles[i];
         if (
-          obstacles[i].x < bikeX + 85 &&
-          obstacles[i].x + 45 > bikeX + 15 &&
-          bikeY + 45 > obstacles[i].y
+          obs.x < bikeX + 85 &&
+          obs.x + obs.width > bikeX + 15 &&
+          bikeY + 45 > obs.y
         ) {
           gameOver = true;
         }
 
-        if (obstacles[i].x < -60) obstacles.splice(i, 1);
+        if (obs.x < -80) obstacles.splice(i, 1);
       }
 
-      // Poeira
-      if (Math.random() < 0.6) createParticles(bikeX + 15, bikeY);
-
+      if (Math.random() < 0.65) createParticles(bikeX + 18, bikeY);
       score += Math.floor(bikeSpeed / 3);
       scoreEl.textContent = score;
     }
@@ -280,18 +297,18 @@
       drawParticles();
 
       if (gameOver) {
-        ctx.fillStyle = "rgba(0,0,0,0.8)";
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         ctx.fillStyle = "#fff";
-        ctx.font = "bold 60px Arial";
+        ctx.font = "bold 62px Arial";
         ctx.textAlign = "center";
         ctx.fillText("GAME OVER", canvas.width/2, 200);
         
-        ctx.font = "30px Arial";
+        ctx.font = "32px Arial";
         ctx.fillText(`Distância: ${score}m`, canvas.width/2, 270);
-        ctx.fillText(`Nível ${level}`, canvas.width/2, 310);
-        ctx.fillText("Pressione F5 para jogar novamente", canvas.width/2, 380);
+        ctx.fillText(`Nível alcançado: ${level}`, canvas.width/2, 315);
+        ctx.fillText("Pressione F5 para reiniciar", canvas.width/2, 380);
       }
     }
 
