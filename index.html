@@ -12,14 +12,19 @@
       overflow: hidden; user-select: none;
     }
     canvas {
-      border: 8px solid #1a1a1a;
-      border-radius: 20px;
-      box-shadow: 0 0 60px rgba(0, 255, 140, 0.7);
+      border: 6px solid #1a1a1a;
+      border-radius: 15px;
+      box-shadow: 0 0 50px rgba(0, 255, 120, 0.6);
     }
-    #hud { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); color: white; text-align: center; text-shadow: 0 3px 15px black; z-index: 10; pointer-events: none; }
-    #score { font-size: 42px; font-weight: bold; letter-spacing: 3px; }
-    #level { font-size: 24px; color: #ffd700; margin-top: 4px; text-shadow: 0 0 10px gold; }
-    #highscore { font-size: 17px; color: #ccc; margin-top: 8px; }
+    #hud { position: absolute; top: 25px; left: 50%; transform: translateX(-50%); color: white; text-align: center; text-shadow: 0 3px 12px black; z-index: 10; pointer-events: none; }
+    #score { font-size: 38px; font-weight: bold; letter-spacing: 2px; }
+    #level { font-size: 22px; color: #ffd700; margin-top: 4px; }
+    #highscore { font-size: 16px; color: #aaa; margin-top: 8px; }
+    #restart, #pauseScreen {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.92); color: white; padding: 30px 50px;
+      border-radius: 16px; text-align: center; display: none; z-index: 100;
+    }
   </style>
 </head>
 <body>
@@ -30,15 +35,15 @@
   </div>
   <canvas id="gameCanvas" width="950" height="520"></canvas>
 
-  <div id="restart" style="display:none;">
+  <div id="restart">
     <h2>GAME OVER</h2>
     <p>Distância: <span id="finalScore">0</span>m</p>
     <p>Nível: <span id="finalLevel">1</span></p>
-    <button onclick="restartGame()" style="padding:16px 45px; font-size:20px; margin-top:20px; cursor:pointer; border:none; border-radius:12px; background:#e63939; color:white;">
+    <button onclick="restartGame()" style="padding:14px 40px; font-size:19px; margin-top:15px; cursor:pointer;">
       Jogar Novamente (R)
     </button>
   </div>
-  <div id="pauseScreen" style="display:none;">
+  <div id="pauseScreen">
     <h2>PAUSADO</h2>
     <p>Pressione P para continuar</p>
   </div>
@@ -74,221 +79,306 @@
     window.addEventListener("keydown", e => keys[e.key] = true);
     window.addEventListener("keyup", e => keys[e.key] = false);
 
-    // Parallax Layers
+    // ==================== PARALLAX ====================
     const parallaxLayers = [
-      { speed: 0.2,  color: "#1a2f2a", y: 180 },   // Montanhas distantes
-      { speed: 0.5,  color: "#234d3a", y: 250 },   // Colinas
-      { speed: 0.9,  color: "#2a6b4a", y: 310 }    // Grama distante
+      { speed: 0.25, color: "#1e3a2f", y: 210 },
+      { speed: 0.65, color: "#255d3f", y: 275 }
     ];
 
     function createGroundParticles(x, y) {
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 10; i++) {
         particles.push({
-          x: x + 25 + Math.random() * 25,
-          y: y + 48,
-          vx: -gameState.bikeSpeed * 0.65 - Math.random() * 5,
-          vy: -Math.random() * 4 - 1,
-          life: 35,
-          size: Math.random() * 8 + 4,
-          color: "#888"
+          x: x + 20 + Math.random() * 20,
+          y: y + 45,
+          vx: -gameState.bikeSpeed * 0.6 - Math.random() * 4,
+          vy: -Math.random() * 3 - 1,
+          life: 32,
+          size: Math.random() * 7 + 4
         });
       }
     }
 
     function createExhaust(x, y) {
-      const intensity = Math.max(0, (gameState.bikeSpeed - 12) / 16);
-      for (let i = 0; i < 7 + intensity * 7; i++) {
+      const intensity = Math.max(0, (gameState.bikeSpeed - 12) / 18);
+      for (let i = 0; i < 6 + intensity * 5; i++) {
         exhaustTrails.push({
-          x: x + Math.random() * 12 - 6,
-          y: y + Math.random() * 9 - 4,
-          vx: -gameState.bikeSpeed * 0.8 - Math.random() * 10,
-          vy: -Math.random() * 6 - 2,
-          life: 26 + intensity * 20,
-          size: 9 + intensity * 12,
-          hue: 15 + Math.random() * 45
+          x: x + Math.random() * 10 - 5,
+          y: y + Math.random() * 8 - 4,
+          vx: -gameState.bikeSpeed * 0.75 - Math.random() * 9,
+          vy: -Math.random() * 5 - 1.5,
+          life: 22 + intensity * 18,
+          size: 8 + intensity * 11,
+          hue: 18 + Math.random() * 40
         });
       }
     }
 
     function drawBackground() {
       const t = gameState.timeOfDay;
-
-      // Céu aprimorado
-      const sky = ctx.createLinearGradient(0, 0, 0, 380);
-      sky.addColorStop(0, `rgb(${Math.floor(8+45*(1-t))},${Math.floor(55-60*t)},${Math.floor(130-95*t)})`);
-      sky.addColorStop(1, t > 0.7 ? "#0a0a2b" : "#8ed1ff");
+      const sky = ctx.createLinearGradient(0, 0, 0, 360);
+      sky.addColorStop(0, `rgb(${Math.floor(12+38*(1-t))},${Math.floor(68-58*t)},${Math.floor(135-88*t)})`);
+      sky.addColorStop(1, t > 0.65 ? "#0f0f3d" : "#7bc6ff");
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, canvas.width, 380);
 
-      // Estrelas à noite
-      if (t > 0.6) {
-        ctx.fillStyle = "white";
-        for (let i = 0; i < 45; i++) {
-          let x = (i * 37 + gameState.gameTime * 0.1) % canvas.width;
-          let y = 40 + (i % 12) * 18;
-          ctx.globalAlpha = 0.6 + Math.sin(gameState.gameTime * 0.01 + i) * 0.4;
-          ctx.fillRect(x, y, 1.5, 1.5);
-        }
-        ctx.globalAlpha = 1;
-      }
-
       // Sol / Lua
       if (t < 0.65) {
-        ctx.fillStyle = `rgba(255, 245, 120, ${1-t})`;
-        ctx.beginPath(); ctx.arc(720, 95, 55, 0, Math.PI*2); ctx.fill();
-      } else {
-        ctx.fillStyle = `rgba(240, 245, 255, ${t-0.6})`;
-        ctx.beginPath(); ctx.arc(765, 88, 42, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = `rgba(255,240,100,${1-t})`;
+        ctx.beginPath(); ctx.arc(760, 105, 52, 0, Math.PI*2); ctx.fill();
       }
 
-      // Nuvens suaves
-      gameState.cloudOffset = (gameState.cloudOffset + 0.35) % (canvas.width + 500);
-      ctx.fillStyle = `rgba(255,255,255,${0.75 - t*0.65})`;
+      // Nuvens
+      gameState.cloudOffset = (gameState.cloudOffset + 0.4) % (canvas.width + 400);
+      ctx.fillStyle = `rgba(255,255,255,${0.85 - t*0.7})`;
       for (let i = 0; i < 5; i++) {
-        let x = (i*240 + gameState.cloudOffset) % (canvas.width + 500) - 80;
-        ctx.beginPath(); ctx.ellipse(x+80, 65+i*22, 72, 32, 0, 0, Math.PI*2); ctx.fill();
+        let x = (i*260 + gameState.cloudOffset) % (canvas.width + 400) - 100;
+        ctx.beginPath(); ctx.ellipse(x+70, 68+i*25, 65, 28, 0, 0, Math.PI*2); ctx.fill();
       }
 
-      // Parallax
+      // Parallax Layers
       for (let layer of parallaxLayers) {
-        const offset = (gameState.score * layer.speed) % (canvas.width * 2.2);
+        const offset = (gameState.score * layer.speed) % (canvas.width * 2);
         ctx.fillStyle = layer.color;
-        ctx.fillRect(0, layer.y, canvas.width, 180);
+        ctx.fillRect(0, layer.y, canvas.width, 160);
 
-        ctx.fillStyle = t > 0.55 ? "#0c1f1a" : "#1f4a36";
-        for (let i = -1; i < 6; i++) {
-          let x = i * 210 - offset;
+        ctx.fillStyle = t > 0.5 ? "#0a1f18" : "#1a3f2a";
+        for (let i = -1; i < 5; i++) {
+          let x = (i * 260 - offset);
           ctx.beginPath();
-          ctx.moveTo(x, layer.y + 55);
-          ctx.lineTo(x + 95, layer.y - 30);
-          ctx.lineTo(x + 195, layer.y + 55);
+          ctx.moveTo(x, layer.y + 40);
+          ctx.lineTo(x + 90, layer.y - 25);
+          ctx.lineTo(x + 180, layer.y + 40);
           ctx.fill();
         }
       }
 
-      // Grama lateral
-      ctx.fillStyle = "#1e3f2b";
-      ctx.fillRect(0, 370, canvas.width, 30);
-      ctx.fillStyle = "#2a5a3f";
-      ctx.fillRect(0, 385, canvas.width, 15);
-
-      // Estrada premium
+      // Estrada
       const road = ctx.createLinearGradient(0,380,0,520);
-      road.addColorStop(0, t > 0.6 ? "#1c1c1c" : "#2f2f2f");
-      road.addColorStop(1, "#0a0a0a");
+      road.addColorStop(0, t > 0.5 ? "#1f1f1f" : "#2a2a2a");
+      road.addColorStop(1, "#0f0f0f");
       ctx.fillStyle = road;
       ctx.fillRect(0,380,canvas.width,140);
 
-      // Linhas da estrada com brilho
+      // Linhas com motion blur
+      const blur = Math.min(gameState.bikeSpeed / 20, 1.8);
       ctx.strokeStyle = "#ffeb3b";
-      ctx.lineWidth = 12;
-      const blur = Math.min(gameState.bikeSpeed / 18, 2);
-      for (let i = -150; i < canvas.width + 200; i += 82) {
-        let pos = i - (gameState.score * 3.8 % 82);
-        ctx.globalAlpha = 0.9 - blur * 0.3;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = "#ffee77";
+      ctx.lineWidth = 11;
+      for (let i = -120; i < canvas.width + 180; i += 88) {
+        let pos = i - (gameState.score * 3.6 % 88);
+        ctx.globalAlpha = 0.95 - blur * 0.35;
         ctx.beginPath();
-        ctx.moveTo(pos, 427);
-        ctx.lineTo(pos + 52, 427);
+        ctx.moveTo(pos, 428);
+        ctx.lineTo(pos + 58, 428);
         ctx.stroke();
       }
-      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
     }
 
     function drawBike() {
       const x = gameState.bikeX;
       const y = gameState.bikeY;
-      const lean = Math.min((gameState.bikeSpeed - 14) * 1.1, 22);
-      const bob = gameState.isJumping ? Math.sin(gameState.gameTime * 0.25) * 6 : 0;
+      const lean = Math.min((gameState.bikeSpeed - 15) * 0.9, 18);
+      const bob = gameState.isJumping ? Math.sin(gameState.gameTime * 0.2) * 5 : 0;
       const shakeX = (Math.random() - 0.5) * gameState.shake;
-      const shakeY = (Math.random() - 0.5) * gameState.shake * 0.6;
+      const shakeY = (Math.random() - 0.5) * gameState.shake;
 
-      gameState.wheelAngle += gameState.bikeSpeed * 0.2;
+      gameState.wheelAngle += gameState.bikeSpeed * 0.19;
 
       // Sombra
-      ctx.fillStyle = "rgba(0,0,0,0.7)";
-      ctx.fillRect(x + 10 + shakeX, y + 54 + shakeY, 102, 18);
+      ctx.fillStyle = "rgba(0,0,0,0.65)";
+      ctx.fillRect(x + 12 + shakeX, y + 53 + shakeY, 98, 17);
 
-      // === PILOTO ===
+      // === PILOTO ANIMADO ===
       ctx.save();
-      ctx.translate(x + 70 + shakeX, y + 16 + bob + shakeY);
-      ctx.rotate(-lean * 0.018);
+      ctx.translate(x + 68 + shakeX, y + 18 + bob + shakeY);
+      ctx.rotate(-lean * 0.017);
 
-      ctx.fillStyle = "#1f1f1f";           // Jaqueta
-      ctx.fillRect(-8, 4, 36, 42);
-      ctx.fillStyle = "#0f0f0f";           // Capacete
+      ctx.fillStyle = "#1a1a1a"; // jaqueta
+      ctx.fillRect(-6, 5, 32, 38);
+      ctx.fillStyle = "#111"; // capacete
       ctx.beginPath();
-      ctx.ellipse(16, -9, 19, 17, 0.25, 0, Math.PI*2);
+      ctx.ellipse(14, -6, 17, 15, 0.3, 0, Math.PI*2);
       ctx.fill();
-      ctx.fillStyle = "#ff1a1a";           // Detalhe capacete
-      ctx.fillRect(24, -15, 11, 9);
+      ctx.fillStyle = "#ff2222";
+      ctx.fillRect(22, -13, 9, 7);
 
       ctx.restore();
 
       // === MOTO DETALHADA ===
-      const grad = ctx.createLinearGradient(x+22, y+12, x+115, y+52);
-      grad.addColorStop(0, "#ff2d2d");
-      grad.addColorStop(1, "#b81a1a");
+      const grad = ctx.createLinearGradient(x+25, y+12, x+110, y+48);
+      grad.addColorStop(0, "#e63939");
+      grad.addColorStop(1, "#9e1f1f");
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.moveTo(x+24, y+19);
-      ctx.quadraticCurveTo(x+52, y+8, x+85, y+16);
-      ctx.lineTo(x+112, y+44);
-      ctx.lineTo(x+40, y+55);
-      ctx.lineTo(x+21, y+31);
+      ctx.moveTo(x+26, y+20);
+      ctx.quadraticCurveTo(x+50, y+9, x+82, y+17);
+      ctx.lineTo(x+105, y+43);
+      ctx.lineTo(x+38, y+53);
+      ctx.lineTo(x+22, y+33);
       ctx.closePath();
       ctx.fill();
 
-      // Cromados e detalhes
-      ctx.fillStyle = "#eeeeee";
-      ctx.fillRect(x+46, y+18, 48, 11);
-      ctx.fillStyle = "#444";
-      ctx.fillRect(x+38, y+44, 58, 16);
-
-      // Retrovisores
-      ctx.strokeStyle = "#222";
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.moveTo(x+95, y+18);
-      ctx.lineTo(x+112, y+8);
-      ctx.stroke();
+      // Cromados
+      ctx.fillStyle = "#ddd";
+      ctx.fillRect(x+45, y+19, 45, 10);
+      ctx.fillStyle = "#333";
+      ctx.fillRect(x+37, y+43, 52, 15);
 
       // Escapamento duplo
       ctx.strokeStyle = "#222";
-      ctx.lineWidth = 11;
-      ctx.beginPath(); ctx.moveTo(x+41, y+51); ctx.quadraticCurveTo(x+14, y+55, x+6, y+67); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x+50, y+52); ctx.quadraticCurveTo(x+22, y+59, x+14, y+73); ctx.stroke();
+      ctx.lineWidth = 10;
+      ctx.beginPath(); ctx.moveTo(x+40, y+50); ctx.quadraticCurveTo(x+15, y+54, x+7, y+64); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+48, y+51); ctx.quadraticCurveTo(x+20, y+57, x+13, y+70); ctx.stroke();
 
-      if (gameState.bikeSpeed > 13) createExhaust(x + 9, y + 65);
+      if (gameState.bikeSpeed > 12) createExhaust(x + 10, y + 63);
 
       // Rodas
-      ctx.strokeStyle = "#0a0a0a"; ctx.lineWidth = 28;
-      ctx.beginPath(); ctx.arc(x+38, y+54, 21, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x+98, y+54, 21, 0, Math.PI*2); ctx.stroke();
+      ctx.strokeStyle = "#111"; ctx.lineWidth = 27;
+      ctx.beginPath(); ctx.arc(x+37, y+53, 20, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x+95, y+53, 20, 0, Math.PI*2); ctx.stroke();
 
-      ctx.strokeStyle = "#ddd"; ctx.lineWidth = 10;
-      ctx.save(); ctx.translate(x+38, y+54); ctx.rotate(gameState.wheelAngle);
-      ctx.beginPath(); ctx.arc(0,0,14,0,Math.PI*2); ctx.stroke(); ctx.restore();
-      ctx.save(); ctx.translate(x+98, y+54); ctx.rotate(gameState.wheelAngle);
-      ctx.beginPath(); ctx.arc(0,0,14,0,Math.PI*2); ctx.stroke(); ctx.restore();
+      ctx.strokeStyle = "#eee"; ctx.lineWidth = 9;
+      ctx.save(); ctx.translate(x+37, y+53); ctx.rotate(gameState.wheelAngle);
+      ctx.beginPath(); ctx.arc(0,0,13.5,0,Math.PI*2); ctx.stroke(); ctx.restore();
+      ctx.save(); ctx.translate(x+95, y+53); ctx.rotate(gameState.wheelAngle);
+      ctx.beginPath(); ctx.arc(0,0,13.5,0,Math.PI*2); ctx.stroke(); ctx.restore();
 
-      // Farol com brilho
-      ctx.fillStyle = "#ffeebb";
-      ctx.beginPath(); ctx.ellipse(x+115, y+26, 17, 14, -0.6, 0, Math.PI*2); ctx.fill();
-      ctx.shadowBlur = 25;
-      ctx.shadowColor = "#ffee88";
-      ctx.fillStyle = "rgba(255,240,180,0.6)";
-      ctx.beginPath(); ctx.ellipse(x+118, y+26, 22, 12, -0.6, 0, Math.PI*2); ctx.fill();
-      ctx.shadowBlur = 0;
+      // Farol
+      ctx.fillStyle = "#ffeecc";
+      ctx.beginPath(); ctx.ellipse(x+108, y+26, 16, 13, -0.55, 0, Math.PI*2); ctx.fill();
     }
 
-    // (As funções drawParticles, drawExhaustTrails, drawObstacle, update, draw, etc. permanecem iguais às da versão anterior)
+    function drawParticles() { /* mesmo código original */ 
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        ctx.globalAlpha = p.life / 32;
+        ctx.fillStyle = "#999";
+        ctx.fillRect(p.x, p.y, p.size, p.size);
+        p.x += p.vx; p.y += p.vy; p.vy += 0.3; p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
 
-    // ... [Para não estender demais, use as funções update, draw, gameLoop, endGame e restartGame da versão anterior que enviei]
+    function drawExhaustTrails() { /* mesmo código original atualizado */ 
+      for (let i = exhaustTrails.length - 1; i >= 0; i--) {
+        const t = exhaustTrails[i];
+        ctx.globalAlpha = t.life / 35;
+        ctx.fillStyle = `hsl(${t.hue}, 100%, 65%)`;
+        ctx.fillRect(t.x, t.y, t.size, t.size * 0.7);
+        t.x += t.vx; t.y += t.vy; t.vy += 0.2; t.life--; t.size *= 0.965;
+        if (t.life <= 0) exhaustTrails.splice(i, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
 
-    requestAnimationFrame(gameLoop);
-  </script>
-</body>
-</html>
+    function drawObstacle(obs) {
+      ctx.save();
+      ctx.translate(obs.x, obs.y);
+      if (obs.type === "rock") {
+        ctx.fillStyle = gameState.timeOfDay > 0.5 ? "#444" : "#555";
+        ctx.beginPath(); ctx.ellipse(26,32,29,23,0,0,Math.PI*2); ctx.fill();
+      } else if (obs.type === "barrel") {
+        ctx.fillStyle = "#c8102e"; ctx.fillRect(8,10,42,52);
+        ctx.fillStyle = "#f1c40f"; ctx.fillRect(8,28,42,10);
+      } else if (obs.type === "log") {
+        ctx.fillStyle = "#8d5f2e"; ctx.fillRect(6,22,56,26);
+      } else if (obs.type === "box") {
+        ctx.fillStyle = "#b97a3d"; ctx.fillRect(12,16,42,46);
+      }
+      ctx.restore();
+    }
+
+    function update(delta) {
+      gameState.gameTime += delta;
+      gameState.timeOfDay = Math.min(1, gameState.gameTime / 2600);
+
+      if (Math.floor(gameState.gameTime) % 230 === 0 && gameState.bikeSpeed < 37) {
+        gameState.bikeSpeed += 0.62;
+        gameState.level = Math.floor((gameState.bikeSpeed - 5) / 3.8) + 1;
+        levelEl.textContent = `Nível ${gameState.level}`;
+      }
+
+      if (keys["ArrowRight"]) gameState.bikeSpeed = Math.min(gameState.bikeSpeed + 0.68, 37);
+      if (keys["ArrowLeft"]) gameState.bikeSpeed = Math.max(gameState.bikeSpeed - 0.85, 5);
+
+      if ((keys[" "] || keys["ArrowUp"]) && !gameState.isJumping) {
+        gameState.velocityY = -23.5;
+        gameState.isJumping = true;
+      }
+
+      gameState.velocityY += gameState.gravity;
+      gameState.bikeY += gameState.velocityY;
+
+      if (gameState.bikeY >= 355) {
+        gameState.bikeY = 355;
+        gameState.velocityY = 0;
+        gameState.isJumping = false;
+        if (gameState.bikeSpeed > 22) gameState.shake = 5;
+      }
+
+      gameState.shake *= 0.82;
+
+      // Obstáculos
+      if (Date.now() - gameState.lastObstacleTime > Math.max(400, 1250 - gameState.level * 80)) {
+        const types = ["rock", "barrel", "log", "box"];
+        obstacles.push({ x: canvas.width + 60, y: 328 + Math.random() * 34, type: types[Math.floor(Math.random()*4)], width: 58, height: 55 });
+        gameState.lastObstacleTime = Date.now();
+      }
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].x -= gameState.bikeSpeed;
+        const o = obstacles[i];
+        if (o.x < gameState.bikeX + 98 && o.x + o.width > gameState.bikeX + 20 &&
+            gameState.bikeY + 53 > o.y && gameState.bikeY + 22 < o.y + o.height) {
+          endGame();
+        }
+        if (o.x < -100) obstacles.splice(i, 1);
+      }
+
+      if (Math.random() < 0.85) createGroundParticles(gameState.bikeX, gameState.bikeY);
+      gameState.score += Math.floor(gameState.bikeSpeed / 2.4);
+      scoreEl.textContent = gameState.score;
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground();
+      obstacles.forEach(drawObstacle);
+      drawBike();
+      drawParticles();
+      drawExhaustTrails();
+
+      if (gameState.gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.78)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    function gameLoop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const delta = Math.min((timestamp - lastTime) / 16, 2.5);
+      lastTime = timestamp;
+
+      if (!gameState.gameOver && !gameState.paused) update(delta);
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function endGame() {
+      gameState.gameOver = true;
+      if (gameState.score > gameState.highScore) {
+        gameState.highScore = gameState.score;
+        localStorage.setItem("motoHighScore", gameState.highScore);
+        highscoreEl.textContent = `Recorde: ${gameState.highScore}m`;
+      }
+      finalScoreEl.textContent = gameState.score;
+      finalLevelEl.textContent = gameState.level;
+      restartScreen.style.display = "block";
+    }
+
+    function restartGame() {
+      gameState.bikeSpeed = 7; gameState.score = 0; gameState.level = 1;
+      gameState.bikeY = 355; gameState.velocityY = 0; gameState.gameTime = 0;
+      gameState.timeOfDay = 0; gameState.gameOver = false; gameState.paused = false;
+      gameState.shake = 0
