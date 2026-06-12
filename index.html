@@ -1,444 +1,464 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🏍️ Moto Runner - Premium</title>
-  <style>
-    body {
-      margin: 0; padding: 0;
-      display: flex; justify-content: center; align-items: center;
-      height: 100vh; background: #0a0a0a; font-family: 'Arial', sans-serif;
-      overflow: hidden; user-select: none; touch-action: none;
-    }
-    canvas {
-      border: 6px solid #1a1a1a;
-      border-radius: 15px;
-      box-shadow: 0 0 60px rgba(0, 255, 140, 0.7);
-      image-rendering: pixelated;
-    }
-    #ui {
-      position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-      color: white; text-align: center; text-shadow: 0 3px 15px black;
-      z-index: 10; pointer-events: none;
-    }
-    #score { font-size: 42px; font-weight: bold; }
-    #level { font-size: 24px; color: #ffd700; }
-    #startScreen, #restart, #pauseScreen {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.95); color: white; padding: 40px 60px;
-      border-radius: 20px; text-align: center; z-index: 100; display: none;
-    }
-    button {
-      padding: 16px 50px; font-size: 20px; margin-top: 20px;
-      background: #e63939; color: white; border: none; border-radius: 12px;
-      cursor: pointer; font-weight: bold;
-    }
-    button:hover { background: #ff4d4d; transform: scale(1.05); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subway Moto - Corrida Infinita</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(#0a0a0a, #1a1a2e);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 0 30px rgba(0, 255, 100, 0.5);
+        }
+        canvas {
+            background: #000;
+            display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px black;
+            pointer-events: none;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px 50px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            border: 3px solid #00ff88;
+        }
+        button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background: #00ff88;
+            color: black;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #00cc66;
+        }
+        .info {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #aaa;
+            font-size: 14px;
+        }
+    </style>
 </head>
 <body>
-  <div id="ui">
-    <div>Distância: <span id="score">0</span>m</div>
-    <div id="level">Nível 1</div>
-    <div id="highscore">Recorde: 0m</div>
-  </div>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+        <div id="ui">
+            <div>Pontos: <span id="score">0</span></div>
+            <div>Distância: <span id="distance">0</span>m</div>
+        </div>
+        
+        <div id="gameOver">
+            <h1>Game Over</h1>
+            <p>Pontuação Final: <span id="finalScore">0</span></p>
+            <button onclick="restartGame()">Jogar Novamente</button>
+        </div>
+        
+        <div class="info">← → Trocar faixa | ESPAÇO Pular | P = Pausar</div>
+    </div>
 
-  <canvas id="gameCanvas" width="950" height="520"></canvas>
-
-  <div id="startScreen">
-    <h1>🏍️ MOTO RUNNER</h1>
-    <p style="font-size:22px;margin:15px 0;">Pressione qualquer tecla ou toque na tela</p>
-    <button onclick="startGame()">INICIAR JOGO</button>
-  </div>
-
-  <div id="restart">
-    <h2>GAME OVER</h2>
-    <p>Distância: <span id="finalScore">0</span>m</p>
-    <p>Nível: <span id="finalLevel">1</span></p>
-    <button onclick="restartGame()">Jogar Novamente (R)</button>
-  </div>
-
-  <div id="pauseScreen">
-    <h2>PAUSADO</h2>
-    <p>Pressione P para continuar</p>
-  </div>
-
-  <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    const scoreEl = document.getElementById("score");
-    const levelEl = document.getElementById("level");
-    const highscoreEl = document.getElementById("highscore");
-    const startScreen = document.getElementById("startScreen");
-    const restartScreen = document.getElementById("restart");
-    const pauseScreen = document.getElementById("pauseScreen");
-    const finalScoreEl = document.getElementById("finalScore");
-    const finalLevelEl = document.getElementById("finalLevel");
-
-    let gameState = {
-      bikeX: 130, bikeY: 355, bikeSpeed: 8, velocityY: 0,
-      gravity: 0.92, isJumping: false, score: 0, highScore: localStorage.getItem("motoHighScore") || 0,
-      gameTime: 0, level: 1, gameOver: false, paused: false, started: false,
-      timeOfDay: 0, wheelAngle: 0, lean: 0, cloudOffset: 0
-    };
-
-    let obstacles = [], particles = [], exhaustTrails = [], keys = {};
-    let lastTime = 0, audioCtx;
-
-    // ==================== ÁUDIO ====================
-    function initAudio() {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    function playSound(freq, duration, type = "sawtooth", vol = 0.3) {
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-      gain.gain.value = vol;
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
-    }
-
-    // ==================== PARTÍCULAS ====================
-    function createParticles(x, y, count, color = "#999") {
-      for (let i = 0; i < count; i++) {
-        particles.push({
-          x: x + Math.random() * 40 - 10,
-          y: y + 45,
-          vx: -gameState.bikeSpeed * 0.7 - Math.random() * 6,
-          vy: -Math.random() * 5 - 2,
-          life: 28 + Math.random() * 15,
-          size: Math.random() * 8 + 5,
-          color
-        });
-      }
-    }
-
-    function createExhaust(x, y) {
-      const intensity = Math.max(0, (gameState.bikeSpeed - 12) / 20);
-      for (let i = 0; i < 6 + intensity * 8; i++) {
-        exhaustTrails.push({
-          x: x + Math.random() * 12 - 6,
-          y: y + Math.random() * 8 - 4,
-          vx: -gameState.bikeSpeed * 0.8 - Math.random() * 10,
-          vy: -Math.random() * 5 - 1,
-          life: 22 + intensity * 25,
-          size: 8 + intensity * 12,
-          hue: 15 + Math.random() * 40
-        });
-      }
-    }
-
-    // ==================== DESENHO ====================
-    function drawBackground() {
-      const t = gameState.timeOfDay;
-      const sky = ctx.createLinearGradient(0, 0, 0, 380);
-      sky.addColorStop(0, `rgb(10,${45 + 30*(1-t)},${110 - 80*t})`);
-      sky.addColorStop(1, t > 0.65 ? "#0f0f2b" : "#7cc6ff");
-      ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, canvas.width, 380);
-
-      // Sol/Lua
-      if (t < 0.7) {
-        ctx.fillStyle = `rgba(255,240,100,${1-t*1.3})`;
-        ctx.beginPath(); ctx.arc(760, 105, 52, 0, Math.PI*2); ctx.fill();
-      } else {
-        ctx.fillStyle = `rgba(220,230,255,${(t-0.6)*5})`;
-        ctx.beginPath(); ctx.arc(750, 95, 40, 0, Math.PI*2); ctx.fill();
-      }
-
-      // Nuvens
-      gameState.cloudOffset = (gameState.cloudOffset + 0.4) % (canvas.width + 400);
-      ctx.fillStyle = `rgba(255,255,255,${0.85 - t*0.7})`;
-      for (let i = 0; i < 4; i++) {
-        let x = (i*280 + gameState.cloudOffset) % (canvas.width + 400) - 100;
-        ctx.beginPath(); ctx.ellipse(x+70, 68 + i*32, 65, 28, 0, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(x+115, 62 + i*32, 52, 31, 0, 0, Math.PI*2); ctx.fill();
-      }
-
-      // Montanhas e estrada
-      ctx.fillStyle = t > 0.5 ? "#0d2a20" : "#1e5f3a";
-      ctx.beginPath(); ctx.moveTo(0,380); ctx.lineTo(220,160); ctx.lineTo(520,380); ctx.fill();
-      ctx.fillStyle = t > 0.5 ? "#13261f" : "#245c38";
-      ctx.beginPath(); ctx.moveTo(160,380); ctx.lineTo(590,125); ctx.lineTo(880,380); ctx.fill();
-
-      const road = ctx.createLinearGradient(0,380,0,520);
-      road.addColorStop(0, t > 0.5 ? "#1f1f1f" : "#333");
-      road.addColorStop(1, "#0a0a0a");
-      ctx.fillStyle = road;
-      ctx.fillRect(0, 380, canvas.width, 140);
-
-      // Linhas da estrada
-      ctx.strokeStyle = "#ffeb3b";
-      ctx.lineWidth = 11;
-      for (let i = -100; i < canvas.width + 150; i += 92) {
-        let pos = i - (gameState.score * 3 % 92);
-        ctx.beginPath();
-        ctx.moveTo(pos, 435);
-        ctx.lineTo(pos + 58, 435);
-        ctx.stroke();
-      }
-    }
-
-    function drawBike() {
-      const x = gameState.bikeX;
-      const y = gameState.bikeY;
-      const lean = gameState.lean;
-
-      // Sombra
-      ctx.fillStyle = "rgba(0,0,0,0.6)";
-      ctx.fillRect(x + 18, y + 52, 92, 16);
-
-      // Corpo da moto
-      const grad = ctx.createLinearGradient(x+25, y+12, x+105, y+48);
-      grad.addColorStop(0, "#e63939");
-      grad.addColorStop(1, "#9e1f1f");
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.moveTo(x+28, y+20 + lean);
-      ctx.quadraticCurveTo(x+52, y+6 + lean*1.2, x+82, y+18 + lean);
-      ctx.lineTo(x+102, y+42);
-      ctx.lineTo(x+38, y+52);
-      ctx.lineTo(x+25, y+32);
-      ctx.closePath();
-      ctx.fill();
-
-      // Detalhes
-      ctx.fillStyle = "#222"; ctx.fillRect(x+35, y+38, 42, 18);
-      ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.fillRect(x+40, y+20, 35, 9);
-
-      // Escape
-      ctx.strokeStyle = "#222"; ctx.lineWidth = 13;
-      ctx.beginPath();
-      ctx.moveTo(x+38, y+50);
-      ctx.quadraticCurveTo(x+18, y+53, x+10, y+61);
-      ctx.stroke();
-
-      if (gameState.bikeSpeed > 11) createExhaust(x + 12, y + 60);
-
-      // Rodas
-      ctx.strokeStyle = "#111"; ctx.lineWidth = 26;
-      ctx.beginPath(); ctx.arc(x+35, y+52, 19, 0, Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x+92, y+52, 19, 0, Math.PI*2); ctx.stroke();
-
-      // Aros
-      ctx.strokeStyle = "#ddd"; ctx.lineWidth = 9;
-      ctx.save(); ctx.translate(x+35, y+52); ctx.rotate(gameState.wheelAngle);
-      ctx.beginPath(); ctx.arc(0,0,13,0,Math.PI*2); ctx.stroke(); ctx.restore();
-      ctx.save(); ctx.translate(x+92, y+52); ctx.rotate(gameState.wheelAngle);
-      ctx.beginPath(); ctx.arc(0,0,13,0,Math.PI*2); ctx.stroke(); ctx.restore();
-
-      // Farol com glow
-      ctx.shadowBlur = 25; ctx.shadowColor = "#ffee88";
-      ctx.fillStyle = "#ffeeaa";
-      ctx.beginPath(); ctx.ellipse(x+105, y+24, 15, 12, -0.6, 0, Math.PI*2); ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // Piloto
-      ctx.fillStyle = "#222";
-      ctx.beginPath(); ctx.arc(x+62, y+18 + lean*0.8, 11, 0, Math.PI*2); ctx.fill(); // capacete
-      ctx.fillStyle = "#ffdbac";
-      ctx.fillRect(x+58, y+24 + lean*0.8, 9, 12); // rosto
-    }
-
-    function drawParticlesAndTrails() {
-      // Partículas do chão
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        ctx.globalAlpha = p.life / 35;
-        ctx.fillStyle = p.color;
-        ctx.fillRect(p.x, p.y, p.size, p.size);
-        p.x += p.vx; p.y += p.vy; p.vy += 0.35; p.life--;
-        if (p.life <= 0) particles.splice(i, 1);
-      }
-
-      // Exaustão
-      for (let i = exhaustTrails.length - 1; i >= 0; i--) {
-        const t = exhaustTrails[i];
-        ctx.globalAlpha = t.life / 40;
-        ctx.fillStyle = `hsl(${t.hue}, 100%, 65%)`;
-        ctx.fillRect(t.x, t.y, t.size, t.size * 0.75);
-        t.x += t.vx; t.y += t.vy; t.vy += 0.25; t.life--; t.size *= 0.96;
-        if (t.life <= 0) exhaustTrails.splice(i, 1);
-      }
-      ctx.globalAlpha = 1;
-    }
-
-    function drawObstacle(obs) {
-      ctx.save();
-      ctx.translate(obs.x, obs.y);
-      if (obs.type === "rock") {
-        ctx.fillStyle = "#555";
-        ctx.beginPath(); ctx.ellipse(28, 30, 32, 24, 0, 0, Math.PI*2); ctx.fill();
-      } else if (obs.type === "barrel") {
-        ctx.fillStyle = "#c8102e"; ctx.fillRect(8,12,46,50);
-        ctx.fillStyle = "#f1c40f"; ctx.fillRect(8,28,46,10);
-      } else if (obs.type === "ramp") {
-        ctx.fillStyle = "#444"; ctx.fillRect(5,25,65,35);
-        ctx.fillStyle = "#666"; ctx.beginPath(); ctx.moveTo(5,25); ctx.lineTo(70,25); ctx.lineTo(40,5); ctx.fill();
-      }
-      ctx.restore();
-    }
-
-    // ==================== LOOP ====================
-    function gameLoop(timestamp) {
-      if (!lastTime) lastTime = timestamp;
-      const delta = Math.min((timestamp - lastTime) / 16, 2.5);
-      lastTime = timestamp;
-
-      if (gameState.started && !gameState.gameOver && !gameState.paused) {
-        update(delta);
-      }
-      draw();
-      requestAnimationFrame(gameLoop);
-    }
-
-    function update(delta) {
-      gameState.gameTime += delta;
-      gameState.timeOfDay = Math.min(1, gameState.gameTime / 2600);
-
-      // Dificuldade
-      if (gameState.gameTime % 240 < 1 && gameState.bikeSpeed < 36) {
-        gameState.bikeSpeed += 0.6;
-        gameState.level = Math.floor((gameState.bikeSpeed - 6) / 3.8) + 1;
-        levelEl.textContent = `Nível ${gameState.level}`;
-      }
-
-      // Controles
-      if (keys["ArrowRight"] || keys["d"]) gameState.bikeSpeed = Math.min(gameState.bikeSpeed + 0.65, 37);
-      if (keys["ArrowLeft"] || keys["a"]) gameState.bikeSpeed = Math.max(gameState.bikeSpeed - 0.9, 6);
-
-      if ((keys[" "] || keys["ArrowUp"]) && !gameState.isJumping) {
-        gameState.velocityY = -23.5;
-        gameState.isJumping = true;
-        playSound(280, 0.12, "square", 0.4);
-      }
-
-      // Física
-      gameState.velocityY += gameState.gravity;
-      gameState.bikeY += gameState.velocityY;
-
-      if (gameState.bikeY >= 355) {
-        if (gameState.isJumping) createParticles(gameState.bikeX + 30, 355, 18, "#aaa");
-        gameState.bikeY = 355;
-        gameState.velocityY = 0;
-        gameState.isJumping = false;
-      }
-
-      gameState.lean = gameState.isJumping ? -12 : Math.max(-8, Math.min(8, (gameState.bikeSpeed - 15) * 0.6));
-
-      // Obstáculos
-      if (Math.random() < 0.028 + gameState.level * 0.003) {
-        const types = ["rock", "barrel", "ramp"];
-        obstacles.push({
-          x: canvas.width + 60,
-          y: types[Math.floor(Math.random()*types.length)] === "ramp" ? 300 : 325 + Math.random() * 35,
-          type: types[Math.floor(Math.random() * types.length)],
-          width: 62,
-          height: 55
-        });
-      }
-
-      // Atualizar obstáculos
-      for (let i = obstacles.length - 1; i >= 0; i--) {
-        const o = obstacles[i];
-        o.x -= gameState.bikeSpeed;
-
-        if (o.x < gameState.bikeX + 95 && o.x + o.width > gameState.bikeX + 18 &&
-            gameState.bikeY + 55 > o.y && gameState.bikeY + 15 < o.y + o.height) {
-          
-          if (o.type === "ramp" && gameState.isJumping) {
-            gameState.velocityY = -28; // impulso
-            playSound(520, 0.25, "sine", 0.6);
-          } else {
-            endGame();
-          }
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Variáveis do jogo
+        let gameRunning = true;
+        let score = 0;
+        let distance = 0;
+        let speed = 6;
+        let gameSpeed = speed;
+        
+        // Faixas (3 faixas)
+        const lanes = [200, 400, 600];
+        let playerLane = 1; // 0, 1, 2
+        let playerY = 350;
+        let playerX = lanes[playerLane];
+        let playerVelocityY = 0;
+        let isJumping = false;
+        let playerWidth = 60;
+        let playerHeight = 40;
+        
+        // Arrays do jogo
+        let obstacles = [];
+        let coins = [];
+        let particles = [];
+        
+        // Controles
+        let keys = {};
+        
+        // Imagens (usando emojis e formas simples)
+        function drawMoto(x, y) {
+            // Moto
+            ctx.fillStyle = '#00ff88';
+            ctx.fillRect(x - 25, y - 15, 50, 25); // corpo
+            
+            // Roda dianteira
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.arc(x - 18, y + 10, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ddd';
+            ctx.beginPath();
+            ctx.arc(x - 18, y + 10, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Roda traseira
+            ctx.fillStyle = '#222';
+            ctx.beginPath();
+            ctx.arc(x + 18, y + 10, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ddd';
+            ctx.beginPath();
+            ctx.arc(x + 18, y + 10, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Piloto
+            ctx.fillStyle = '#ff3366';
+            ctx.fillRect(x - 10, y - 25, 20, 15);
         }
-        if (o.x < -100) obstacles.splice(i, 1);
-      }
-
-      if (Math.random() < 0.85) createParticles(gameState.bikeX, gameState.bikeY, 7);
-
-      gameState.score += Math.floor(gameState.bikeSpeed / 2.4);
-      scoreEl.textContent = gameState.score;
-
-      gameState.wheelAngle += gameState.bikeSpeed * 0.19;
-    }
-
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      drawBackground();
-      obstacles.forEach(drawObstacle);
-      drawBike();
-      drawParticlesAndTrails();
-
-      if (gameState.gameOver) {
-        ctx.fillStyle = "rgba(0,0,0,0.8)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-    }
-
-    function endGame() {
-      gameState.gameOver = true;
-      playSound(120, 0.8, "sawtooth", 0.6);
-      if (gameState.score > gameState.highScore) {
-        gameState.highScore = gameState.score;
-        localStorage.setItem("motoHighScore", gameState.highScore);
-        highscoreEl.textContent = `Recorde: ${gameState.highScore}m`;
-      }
-      finalScoreEl.textContent = gameState.score;
-      finalLevelEl.textContent = gameState.level;
-      restartScreen.style.display = "block";
-    }
-
-    function startGame() {
-      startScreen.style.display = "none";
-      gameState.started = true;
-      if (!audioCtx) initAudio();
-    }
-
-    function restartGame() {
-      gameState.bikeSpeed = 8; gameState.score = 0; gameState.level = 1;
-      gameState.bikeY = 355; gameState.velocityY = 0; gameState.gameTime = 0;
-      gameState.gameOver = false; gameState.paused = false;
-      obstacles = []; particles = []; exhaustTrails = [];
-      scoreEl.textContent = "0"; levelEl.textContent = "Nível 1";
-      restartScreen.style.display = "none";
-    }
-
-    // ==================== CONTROLES ====================
-    window.addEventListener("keydown", e => {
-      keys[e.key] = true;
-      if (e.key === "p" || e.key === "P") {
-        if (!gameState.gameOver && gameState.started) {
-          gameState.paused = !gameState.paused;
-          pauseScreen.style.display = gameState.paused ? "block" : "none";
+        
+        class Obstacle {
+            constructor(lane) {
+                this.lane = lane;
+                this.x = lanes[lane];
+                this.y = -50;
+                this.width = 70;
+                this.height = 60;
+                this.type = Math.random() > 0.5 ? 'car' : 'barrier';
+            }
+            
+            update() {
+                this.y += gameSpeed;
+            }
+            
+            draw() {
+                if (this.type === 'car') {
+                    ctx.fillStyle = '#ff3366';
+                    ctx.fillRect(this.x - 30, this.y, 60, 40);
+                    ctx.fillStyle = '#222';
+                    ctx.fillRect(this.x - 25, this.y + 5, 15, 10);
+                    ctx.fillRect(this.x + 10, this.y + 5, 15, 10);
+                } else {
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.fillRect(this.x - 35, this.y, 70, 25);
+                    ctx.fillStyle = '#ff5500';
+                    ctx.fillRect(this.x - 25, this.y + 5, 50, 10);
+                }
+            }
         }
-      }
-      if (gameState.gameOver && e.key.toLowerCase() === "r") restartGame();
-    });
-
-    window.addEventListener("keyup", e => keys[e.key] = false);
-
-    // Controles de toque
-    canvas.addEventListener("touchstart", e => {
-      e.preventDefault();
-      if (!gameState.started) startGame();
-      else if (!gameState.isJumping) {
-        gameState.velocityY = -23.5;
-        gameState.isJumping = true;
-        playSound(280, 0.12, "square", 0.4);
-      }
-    });
-
-    // Iniciar
-    highscoreEl.textContent = `Recorde: ${gameState.highScore}m`;
-    startScreen.style.display = "block";
-    requestAnimationFrame(gameLoop);
-  </script>
+        
+        class Coin {
+            constructor(lane) {
+                this.lane = lane;
+                this.x = lanes[lane];
+                this.y = -30;
+                this.radius = 15;
+                this.collected = false;
+            }
+            
+            update() {
+                this.y += gameSpeed;
+            }
+            
+            draw() {
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ffaa00';
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText('R$', this.x - 8, this.y + 6);
+            }
+        }
+        
+        function spawnObstacle() {
+            if (Math.random() < 0.03) {
+                const lane = Math.floor(Math.random() * 3);
+                obstacles.push(new Obstacle(lane));
+            }
+        }
+        
+        function spawnCoin() {
+            if (Math.random() < 0.04) {
+                const lane = Math.floor(Math.random() * 3);
+                coins.push(new Coin(lane));
+            }
+        }
+        
+        function createParticles(x, y) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.random() * 6 - 3,
+                    vy: Math.random() * -4 - 2,
+                    life: 30,
+                    color: '#00ff88'
+                });
+            }
+        }
+        
+        function update() {
+            if (!gameRunning) return;
+            
+            // Movimento do jogador
+            if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+                if (playerLane > 0) {
+                    playerLane--;
+                    playerX = lanes[playerLane];
+                }
+            }
+            if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+                if (playerLane < 2) {
+                    playerLane++;
+                    playerX = lanes[playerLane];
+                }
+            }
+            
+            // Pulo
+            if ((keys[' '] || keys['Space']) && !isJumping) {
+                playerVelocityY = -18;
+                isJumping = true;
+            }
+            
+            // Física do pulo
+            playerVelocityY += 0.8; // gravidade
+            playerY += playerVelocityY;
+            
+            if (playerY >= 350) {
+                playerY = 350;
+                playerVelocityY = 0;
+                isJumping = false;
+            }
+            
+            // Atualizar obstáculos
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].update();
+                if (obstacles[i].y > canvas.height + 50) {
+                    obstacles.splice(i, 1);
+                }
+            }
+            
+            // Atualizar moedas
+            for (let i = coins.length - 1; i >= 0; i--) {
+                coins[i].update();
+                if (coins[i].y > canvas.height + 50) {
+                    coins.splice(i, 1);
+                }
+            }
+            
+            // Colisão com obstáculos
+            for (let obs of obstacles) {
+                if (!isJumping && 
+                    Math.abs(playerX - obs.x) < 45 && 
+                    Math.abs(playerY - obs.y) < 45) {
+                    gameOver();
+                    return;
+                }
+            }
+            
+            // Coleta de moedas
+            for (let i = coins.length - 1; i >= 0; i--) {
+                const coin = coins[i];
+                if (Math.abs(playerX - coin.x) < 40 && 
+                    Math.abs(playerY - coin.y) < 40) {
+                    score += 10;
+                    createParticles(coin.x, coin.y);
+                    coins.splice(i, 1);
+                }
+            }
+            
+            // Partículas
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                p.vy += 0.2;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+            
+            // Aumentar dificuldade
+            distance += Math.floor(gameSpeed / 2);
+            if (distance % 500 === 0 && gameSpeed < 12) {
+                gameSpeed += 0.3;
+            }
+            
+            // Spawn
+            spawnObstacle();
+            spawnCoin();
+            
+            // Atualizar UI
+            document.getElementById('score').textContent = score;
+            document.getElementById('distance').textContent = distance;
+        }
+        
+        function drawBackground() {
+            // Céu noturno
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#0a0a2a');
+            gradient.addColorStop(1, '#1a2a1a');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Estrada
+            ctx.fillStyle = '#222';
+            ctx.fillRect(100, 0, 600, canvas.height);
+            
+            // Faixas laterais
+            ctx.fillStyle = '#555';
+            ctx.fillRect(80, 0, 20, canvas.height);
+            ctx.fillRect(700, 0, 20, canvas.height);
+            
+            // Linhas da estrada
+            ctx.strokeStyle = '#ffff00';
+            ctx.lineWidth = 8;
+            for (let i = -100; i < canvas.height + 100; i += 60) {
+                const y = (i + (Date.now() / 8) % 60) % (canvas.height + 200) - 100;
+                ctx.beginPath();
+                ctx.moveTo(250, y);
+                ctx.lineTo(250, y + 40);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(550, y);
+                ctx.lineTo(550, y + 40);
+                ctx.stroke();
+            }
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            
+            // Desenhar obstáculos
+            for (let obs of obstacles) {
+                obs.draw();
+            }
+            
+            // Desenhar moedas
+            for (let coin of coins) {
+                coin.draw();
+            }
+            
+            // Desenhar moto
+            drawMoto(playerX, playerY);
+            
+            // Partículas
+            for (let p of particles) {
+                ctx.globalAlpha = p.life / 30;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 6, 6);
+            }
+            ctx.globalAlpha = 1;
+        }
+        
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        function restartGame() {
+            // Resetar variáveis
+            obstacles = [];
+            coins = [];
+            particles = [];
+            playerLane = 1;
+            playerX = lanes[1];
+            playerY = 350;
+            score = 0;
+            distance = 0;
+            gameSpeed = speed;
+            gameRunning = true;
+            document.getElementById('gameOver').style.display = 'none';
+        }
+        
+        // Controles
+        window.addEventListener('keydown', e => {
+            keys[e.key] = true;
+            
+            if (e.key === 'p' || e.key === 'P') {
+                // Pause simples (só para teste)
+                alert('Jogo pausado. Clique OK para continuar.');
+            }
+        });
+        
+        window.addEventListener('keyup', e => {
+            keys[e.key] = false;
+        });
+        
+        // Suporte para toque (mobile)
+        let touchStartX = 0;
+        canvas.addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        
+        canvas.addEventListener('touchend', e => {
+            if (!gameRunning) return;
+            const touchEndX = e.changedTouches[0].screenX;
+            const diff = touchEndX - touchStartX;
+            
+            if (diff > 50 && playerLane < 2) {
+                playerLane++;
+                playerX = lanes[playerLane];
+            } else if (diff < -50 && playerLane > 0) {
+                playerLane--;
+                playerX = lanes[playerLane];
+            } else {
+                // Toque simples = pular
+                if (!isJumping) {
+                    playerVelocityY = -18;
+                    isJumping = true;
+                }
+            }
+        });
+        
+        // Iniciar o jogo
+        gameLoop();
+        
+        // Dica inicial
+        setTimeout(() => {
+            alert("🚀 Bem-vindo ao Subway Moto!\n\nControles:\n← → ou A/D = Trocar faixa\nESPAÇO = Pular\n\nDesvie dos carros e colete as moedas!");
+        }, 800);
+    </script>
 </body>
 </html>
